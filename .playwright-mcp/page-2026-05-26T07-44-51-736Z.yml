@@ -1,0 +1,34 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - link "Proov" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - img [ref=e7]
+        - generic [ref=e9]: Proov
+      - link "연습 중단하고 나가기" [ref=e10] [cursor=pointer]:
+        - /url: /
+  - main [ref=e11]:
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - img [ref=e15]
+          - generic [ref=e18]: GitHub PR 기반 즉석 테스트
+        - heading "새로운 코드 독해 연습 시작" [level=1] [ref=e19]
+        - paragraph [ref=e20]:
+          - text: 분석하고 싶은 공개 GitHub Pull Request URL을 입력해주세요.
+          - text: AI가 코드 변경의 핵심 의도를 짚는 3개의 문제를 자동 출제합니다.
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - generic [ref=e24]: GitHub Pull Request URL
+          - textbox "GitHub Pull Request URL" [ref=e26]:
+            - /placeholder: "예: https://github.com/openai/proov-demo/pull/42"
+        - button "분석 및 문제 생성 시작" [disabled] [ref=e27]:
+          - generic [ref=e28]: 분석 및 문제 생성 시작
+          - img [ref=e29]
+  - contentinfo [ref=e31]:
+    - generic [ref=e33]:
+      - link "Proov" [ref=e34] [cursor=pointer]:
+        - /url: /
+        - img [ref=e35]
+        - generic [ref=e37]: Proov
+      - paragraph [ref=e38]: © 2026 Proov. All rights reserved. Code Comprehension for Modern Teams.
