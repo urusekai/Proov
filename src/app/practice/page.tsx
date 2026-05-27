@@ -8,9 +8,7 @@ import {
   Menu,
   ArrowRight, 
   ArrowLeft, 
-  Loader2, 
   Sparkles, 
-  CheckCircle2, 
   BookOpen,
   ExternalLink,
   GitPullRequest
@@ -174,6 +172,12 @@ diff --git a/src/utils/apiClient.ts b/src/utils/apiClient.ts
   }
 ];
 
+const MOCK_PR_CONTEXT = {
+  repository: "openai/proov-demo",
+  title: "Improve retry logic in API client",
+  branches: "main ⇠ patch-retry",
+};
+
 // Light Git diff viewer
 const DiffViewer = ({ diffText }: { diffText: string }) => {
   const lines = diffText
@@ -231,6 +235,7 @@ export default function Practice() {
   const [answers, setAnswers] = useState<Record<number, "A" | "B" | "C" | "D">>({});
   const [score, setScore] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [loadingDotTick, setLoadingDotTick] = useState(0);
 
   // Read query parameter on mount to auto-start if URL is provided
   useEffect(() => {
@@ -249,11 +254,11 @@ export default function Practice() {
 
   // Steps shown in the premium loading phase
   const loadingPhases = [
-    "GitHub Repository 정보 및 PR 메타데이터 수집 중...",
-    "변경된 소스코드 Diff 필터링 및 불필요한 바이너리 파일 정제 중...",
-    "OpenAI GPT-5.4 기반 코드 변경 의도 및 구조적 맥락 분석 중...",
-    "변별력 있는 핵심 코드 이해력 평가 객관식 3문항 출제 중...",
-    "Zod 스키마 검사 및 문제 정합성 유효성 최종 검증 완료!"
+    "Pull Request URL을 확인하고 있습니다.",
+    "PR 제목, 설명, 변경 파일을 불러오고 있습니다.",
+    "학습에 필요한 코드 변경만 선별하고 있습니다.",
+    "코드 이해력을 확인할 객관식 3문항을 준비하고 있습니다.",
+    "문제, 태그, 해설, 관련 파일을 마지막으로 점검하고 있습니다."
   ];
 
   // Handle URL submit to start loading state
@@ -287,6 +292,16 @@ export default function Practice() {
 
     return () => clearInterval(interval);
   }, [step, loadingPhases.length]);
+
+  useEffect(() => {
+    if (step !== "LOADING") return;
+
+    const interval = setInterval(() => {
+      setLoadingDotTick((prev) => prev + 1);
+    }, 450);
+
+    return () => clearInterval(interval);
+  }, [step]);
 
   // Handle option select in practice view
   const handleSelectOption = (optionId: "A" | "B" | "C" | "D") => {
@@ -334,19 +349,19 @@ export default function Practice() {
         <h1 className="text-3xl font-extrabold tracking-tight text-text mb-4">
           새로운 코드 독해 연습 시작
         </h1>
-        <p className="text-base text-muted-text">
+        <p className="text-base text-muted-text leading-relaxed">
           분석하고 싶은 공개 GitHub Pull Request URL을 입력해주세요.<br />
           AI가 코드 변경의 핵심 의도를 짚는 3개의 문제를 자동 출제합니다.
         </p>
       </div>
 
-      <div className="bg-white rounded-xl border border-lavender-tint shadow-default p-8">
+      <div className="bg-white rounded-xl border border-lavender-tint shadow-default p-6 md:p-8">
         <form onSubmit={handleStartPractice} className="space-y-6">
           <div>
             <label htmlFor="pr-url" className="block text-sm font-semibold text-text mb-2">
               GitHub Pull Request URL
             </label>
-            <div className="bg-white rounded-xl border border-lavender-tint focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 focus-within:shadow-highlight transition-all">
+            <div className="bg-white rounded-lg border border-lavender-tint focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 focus-within:shadow-highlight transition-all">
               <input
                 id="pr-url"
                 type="url"
@@ -362,7 +377,7 @@ export default function Practice() {
           <button
             type="submit"
             disabled={!prUrl}
-            className="w-full bg-accent text-white py-4 rounded-xl text-sm md:text-base font-semibold hover:bg-primary transition-all active:scale-[0.98] shadow-sm hover:shadow-md cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-accent text-white py-3.5 rounded-lg text-sm md:text-base font-semibold hover:bg-primary transition-all active:scale-[0.98] shadow-sm hover:shadow-default cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span>분석 및 문제 생성 시작</span>
             <ArrowRight className="w-4 h-4" />
@@ -373,85 +388,81 @@ export default function Practice() {
   );
 
   // Render loading step
-  const renderLoadingStep = () => (
-    <div className="w-full max-w-[1248px] mx-auto py-12 px-4 md:px-6">
-      <div className="grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] gap-6 items-stretch">
-        <div className="bg-white rounded-xl border border-lavender-tint shadow-default p-8 md:p-10 flex flex-col justify-between">
-          <div>
-            <div className="relative mb-8 w-16 h-16">
-              <div className="absolute inset-0 rounded-full border-4 border-lavender-tint border-t-accent animate-spin" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-accent animate-pulse" />
+  const renderLoadingStep = () => {
+    const loadingDots = (loadingDotTick % 3) + 1;
+
+    return (
+    <div className="w-full max-w-[900px] mx-auto py-12 px-4 md:px-6">
+      <div className="bg-white rounded-xl border border-lavender-tint shadow-default p-6 md:p-10">
+        <div className="min-w-0">
+            <h2 className="text-2xl font-bold text-text mb-3">
+              PR을 읽고 문제를 준비하고 있어요{".".repeat(loadingDots)}
+            </h2>
+            <p className="text-sm text-muted-text leading-relaxed max-w-2xl">
+              공개 PR의 변경 내용을 읽고, 코드 이해력을 확인할 객관식 3문항을 준비합니다.
+            </p>
+
+            <div className="mt-7 rounded-lg border border-lavender-tint bg-background/60 p-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-accent/10 text-accent shrink-0">
+                  <GitPullRequest className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-xs font-bold text-accent">
+                      {MOCK_PR_CONTEXT.repository}
+                    </span>
+                    <span className="font-mono bg-lavender-tint text-primary px-1.5 py-0.5 rounded text-[10px] font-semibold">
+                      {MOCK_PR_CONTEXT.branches}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm font-bold text-text truncate" title={MOCK_PR_CONTEXT.title}>
+                    {MOCK_PR_CONTEXT.title}
+                  </p>
+                </div>
               </div>
             </div>
 
-            <h2 className="text-2xl font-bold text-text mb-3">
-              AI가 Pull Request 분석 중
-            </h2>
-            <p className="text-sm text-muted-text leading-relaxed max-w-md">
-              공개 PR의 메타데이터와 변경 파일을 수집하고, 제한 정책에 맞게 diff를 정제한 뒤 객관식 3문항을 생성합니다.
-            </p>
-          </div>
+            <div className="mt-9">
+              <div className="flex items-center" aria-label="문제 생성 진행 상태">
+                {loadingPhases.map((phase, idx) => {
+                  const isCompleted = idx < loadingStep;
+                  const isCurrent = idx === loadingStep;
 
-          <div className="mt-10 grid sm:grid-cols-2 gap-3">
-            <div className="rounded-lg border border-lavender-tint bg-background/60 p-4">
-              <p className="text-[11px] font-bold text-muted-text mb-1">Repository</p>
-              <p className="font-mono text-sm font-bold text-accent truncate">openai/proov-demo</p>
-            </div>
-            <div className="rounded-lg border border-lavender-tint bg-background/60 p-4">
-              <p className="text-[11px] font-bold text-muted-text mb-1">Questions</p>
-              <p className="text-sm font-bold text-text">객관식 3문항</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl border border-lavender-tint shadow-default p-6 md:p-8">
-          <div className="flex items-center justify-between gap-4 mb-6">
-            <div>
-              <h3 className="text-lg font-bold text-text">처리 단계</h3>
-              <p className="text-sm text-muted-text mt-1">OpenAI 호출 전 diff 제한과 스키마 검증까지 순서대로 처리합니다.</p>
-            </div>
-            <span className="font-mono text-xs font-bold text-accent bg-accent/10 px-2.5 py-1 rounded-full">
-              {Math.min(loadingStep + 1, loadingPhases.length)} / {loadingPhases.length}
-            </span>
-          </div>
-
-          <div className="space-y-4">
-            {loadingPhases.map((phase, idx) => {
-              const isCompleted = idx < loadingStep;
-              const isCurrent = idx === loadingStep;
-
-              return (
-                <div 
-                  key={idx} 
-                  className={`flex items-start gap-3 p-3.5 rounded-lg border transition-all duration-300 ${
-                    isCompleted 
-                      ? "bg-emerald-50/50 border-emerald-100/60 text-emerald-800" 
-                      : isCurrent 
-                        ? "bg-accent/5 border-accent/20 text-accent font-semibold shadow-sm"
-                        : "bg-transparent border-transparent text-muted-text/60"
-                  }`}
-                >
-                  <div className="flex-shrink-0 mt-0.5">
-                    {isCompleted ? (
-                      <CheckCircle2 className="w-5 h-5 text-emerald-500 fill-emerald-50/20" />
-                    ) : isCurrent ? (
-                      <Loader2 className="w-5 h-5 text-accent animate-spin" />
-                    ) : (
-                      <div className="w-5 h-5 rounded-full border border-lavender-tint/80 flex items-center justify-center text-[10px] font-mono select-none">
-                        {idx + 1}
+                  return (
+                    <React.Fragment key={phase}>
+                      <div
+                        className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-all ${
+                          isCompleted
+                            ? "border-accent bg-accent text-white"
+                            : isCurrent
+                              ? "border-accent bg-white text-accent shadow-default ring-4 ring-accent/15 animate-pulse"
+                              : "border-lavender-tint bg-white text-lavender-tint"
+                        }`}
+                      >
+                        {isCompleted ? <Check className="h-4 w-4 stroke-[3px]" /> : <span className="h-2 w-2 rounded-full bg-current" />}
                       </div>
-                    )}
-                  </div>
-                  <span className="text-xs md:text-sm leading-relaxed">{phase}</span>
-                </div>
-              );
-            })}
-          </div>
+                      {idx < loadingPhases.length - 1 && (
+                        <div
+                          className={`h-0.5 flex-1 transition-colors ${
+                            idx < loadingStep ? "bg-accent" : "bg-lavender-tint"
+                          }`}
+                        />
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+
+              <p className="mt-6 text-sm font-medium leading-relaxed text-muted-text">
+                {loadingPhases[loadingStep]}
+              </p>
+            </div>
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   // Render practice step
   const renderPracticeStep = () => {
@@ -476,13 +487,13 @@ export default function Practice() {
             </div>
             <div className="truncate">
               <div className="flex items-center gap-2">
-                <span className="font-mono text-xs font-bold text-accent">openai/proov-demo</span>
+                <span className="font-mono text-xs font-bold text-accent">{MOCK_PR_CONTEXT.repository}</span>
                 <span className="font-mono bg-lavender-tint text-primary px-1.5 py-0.5 rounded text-[10px] font-semibold">
-                  main ⇠ patch-retry
+                  {MOCK_PR_CONTEXT.branches}
                 </span>
               </div>
-              <h1 className="text-sm md:text-base font-bold text-text truncate max-w-[320px] md:max-w-[480px]" title="Improve retry logic in API client">
-                Improve retry logic in API client
+              <h1 className="text-sm md:text-base font-bold text-text truncate max-w-[320px] md:max-w-[480px]" title={MOCK_PR_CONTEXT.title}>
+                {MOCK_PR_CONTEXT.title}
               </h1>
             </div>
           </div>
@@ -509,7 +520,7 @@ export default function Practice() {
         </div>
 
         {/* 2-Column Grid Layout */}
-        <div className="grid xl:grid-cols-[minmax(0,1fr)_460px] 2xl:grid-cols-[minmax(0,1fr)_500px] gap-6 w-full items-start xl:items-stretch xl:flex-1 xl:min-h-0">
+        <div className="grid xl:grid-cols-[minmax(0,1fr)_520px] 2xl:grid-cols-[minmax(0,1fr)_560px] gap-6 w-full items-start xl:items-stretch xl:flex-1 xl:min-h-0">
           
           {/* LEFT PANEL: Git Diff Code Viewer */}
           <section className="bg-white rounded-xl border border-lavender-tint shadow-default overflow-hidden flex flex-col min-w-0 xl:h-full xl:min-h-0">
@@ -569,14 +580,13 @@ export default function Practice() {
                 })}
               </div>
 
-              <div className="mb-4">
+              <div className="mb-5 flex justify-start">
                 <span className="inline-flex items-center bg-accent/10 text-accent text-[11px] font-bold px-2.5 py-0.5 rounded-full">
                   {TAG_LABELS[q.tag]}
                 </span>
               </div>
 
-              <h2 className="text-base md:text-lg font-bold text-text leading-relaxed mb-6 flex items-start gap-2">
-                <span className="text-accent font-extrabold select-none shrink-0">Q{currentQuestionIndex + 1}.</span>
+              <h2 className="text-base md:text-lg font-bold text-text leading-relaxed mb-7">
                 <span>{q.question}</span>
               </h2>
 
@@ -812,14 +822,14 @@ export default function Practice() {
               setPrUrl("");
               setStep("INPUT");
             }}
-            className="w-full sm:w-auto bg-accent text-white px-8 py-3.5 rounded-xl text-sm md:text-base font-semibold hover:bg-primary transition-all active:scale-[0.98] text-center cursor-pointer shadow-sm"
+            className="w-full sm:w-auto bg-accent text-white px-8 py-3.5 rounded-lg text-sm md:text-base font-semibold hover:bg-primary hover:shadow-default transition-all active:scale-[0.98] text-center cursor-pointer shadow-sm"
           >
             다른 PR 연습하기
           </button>
           
           <Link
             href="/"
-            className="w-full sm:w-auto bg-white text-muted-text border border-lavender-tint px-8 py-3.5 rounded-xl text-sm md:text-base font-semibold hover:text-text hover:bg-slate-50 transition-all text-center"
+            className="w-full sm:w-auto bg-white text-muted-text border border-lavender-tint px-8 py-3.5 rounded-lg text-sm md:text-base font-semibold hover:text-text hover:border-accent hover:bg-accent/5 transition-all text-center"
           >
             홈으로 돌아가기
           </Link>

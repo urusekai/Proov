@@ -107,26 +107,30 @@ export default function Home() {
             </p>
 
             {/* Input Form */}
-            <form onSubmit={handleGenerate} className="w-full max-w-2xl flex flex-col sm:flex-row gap-3 mb-4">
-              <div className="flex-1 bg-white rounded-xl shadow-default border border-lavender-tint focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 focus-within:shadow-highlight transition-all">
+            <form onSubmit={handleGenerate} className="w-full max-w-[760px] rounded-xl border border-lavender-tint bg-white p-2 shadow-default transition-all focus-within:border-accent focus-within:shadow-highlight focus-within:ring-2 focus-within:ring-accent/20 sm:flex sm:gap-2">
+              <div className="flex-1">
+                <label htmlFor="hero-pr-url" className="sr-only">
+                  GitHub Pull Request URL
+                </label>
                 <input
+                  id="hero-pr-url"
                   type="text"
-                  placeholder="PR 링크를 입력해주세요"
+                  placeholder="https://github.com/owner/repo/pull/123"
                   value={prUrl}
                   onChange={(e) => setPrUrl(e.target.value)}
-                  className="w-full px-5 py-4 text-sm md:text-base text-text bg-transparent placeholder-muted-text/60 border-none outline-none focus:ring-0"
+                  className="w-full border-none bg-transparent px-4 py-3.5 text-sm text-text outline-none placeholder:text-muted-text/60 md:text-base"
                 />
               </div>
               <button
                 type="submit"
-                className="bg-accent text-white px-8 py-4 rounded-xl text-sm md:text-base font-semibold hover:bg-primary transition-all active:scale-[0.98] shadow-sm hover:shadow-md cursor-pointer whitespace-nowrap"
+                className="mt-2 w-full cursor-pointer whitespace-nowrap rounded-lg bg-accent px-7 py-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-primary hover:shadow-default active:scale-[0.98] sm:mt-0 sm:w-auto md:text-base"
               >
                 문제 생성
               </button>
             </form>
 
             {/* Mini Notice */}
-            <p className="text-xs md:text-sm text-muted-text">
+            <p className="mt-4 text-xs md:text-sm text-muted-text">
               로그인 없이 PR 링크 하나로 바로 체험할 수 있습니다.
             </p>
           </div>
@@ -203,7 +207,7 @@ export default function Home() {
               </div>
 
               {/* Card 2: Proov */}
-              <div className="bg-white rounded-xl p-8 border-2 border-accent shadow-highlight relative overflow-hidden group hover:scale-[1.01] transition-all duration-300">
+              <div className="bg-white rounded-xl p-8 border-2 border-accent shadow-highlight relative overflow-hidden transition-shadow duration-300">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-bold text-accent">
                     PROOV
@@ -293,7 +297,7 @@ export default function Home() {
                 {/* Card 3 */}
                 <div className="bg-white p-6 rounded-xl border border-lavender-tint shadow-default hover:shadow-md transition-shadow">
                   <span className="text-xs font-semibold text-muted-text block mb-2">자주 틀린 유형</span>
-                  <span className="text-3xl font-extrabold text-text">Data Flow</span>
+                  <span className="text-2xl font-extrabold text-text">Data Flow</span>
                 </div>
               </div>
 

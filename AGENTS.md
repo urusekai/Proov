@@ -38,6 +38,11 @@ Proov는 GitHub PR을 바탕으로 AI가 코드 이해도 문제를 내고, 사�
 - `.docs/roadmap.md`: 개발 순서
 - `.docs/design.md`: 디자인 지침
 
+## Project Skills
+
+- 프론트엔드 화면, 컴포넌트, 스타일링, UI 개선 작업에는 프로젝트 로컬 스킬 `.codex/skills/frontend-design/SKILL.md`를 사용한다.
+- 전역 프론트엔드 스킬보다 프로젝트 로컬 `frontend-design`을 우선한다.
+
 ## Rules
 
 - 한국어로 응답한다.
