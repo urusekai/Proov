@@ -756,5 +756,8 @@ export const publicProblemSetSummaries = curatedProblemSets.map((problemSet) => 
   libraryTags: problemSet.libraryTags,
   topicTags: problemSet.topicTags,
   repository: problemSet.repository,
+  pullNumber: problemSet.pullNumber,
+  sourceUrl: problemSet.sourceUrl,
+  sourcePrTitle: problemSet.sourcePrTitle,
   questionCount: problemSet.questions.length,
 }));

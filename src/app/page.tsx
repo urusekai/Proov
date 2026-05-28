@@ -26,7 +26,7 @@ export default function Home() {
   const handleGenerate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!prUrl) return;
-    window.location.href = `/practice?url=${encodeURIComponent(prUrl)}`;
+    window.location.href = `/problem-sets/new?url=${encodeURIComponent(prUrl)}`;
   };
 
   return (
@@ -43,8 +43,11 @@ export default function Home() {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-text">
-              <Link href="/" className="hover:text-accent transition-colors relative py-1 after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-accent after:scale-x-0 hover:after:scale-x-100 after:transition-transform">
+              <Link href="/problem-sets/new" className="hover:text-accent transition-colors relative py-1 after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-accent after:scale-x-0 hover:after:scale-x-100 after:transition-transform">
                 새 풀이
+              </Link>
+              <Link href="/problem-sets" className="hover:text-accent transition-colors relative py-1 after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-accent after:scale-x-0 hover:after:scale-x-100 after:transition-transform">
+                문제 세트
               </Link>
               <Link href="/history" className="hover:text-accent transition-colors relative py-1 after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-accent after:scale-x-0 hover:after:scale-x-100 after:transition-transform">
                 풀이 기록
@@ -75,7 +78,8 @@ export default function Home() {
         {mobileMenuOpen && (
           <div className="md:hidden bg-background border-b border-lavender-tint px-4 md:px-6 py-4 animate-in slide-in-from-top duration-200">
             <nav className="flex flex-col gap-4 text-sm font-medium text-muted-text mb-6">
-              <Link href="/" className="hover:text-accent py-1 transition-colors">새 풀이</Link>
+              <Link href="/problem-sets/new" className="hover:text-accent py-1 transition-colors">새 풀이</Link>
+              <Link href="/problem-sets" className="hover:text-accent py-1 transition-colors">문제 세트</Link>
               <Link href="/history" className="hover:text-accent py-1 transition-colors">풀이 기록</Link>
             </nav>
             <div className="flex flex-col gap-2">
@@ -355,10 +359,10 @@ export default function Home() {
 
               {/* Action Button */}
               <div className="flex justify-center pt-4">
-                <button className="inline-flex items-center gap-2 text-sm font-bold border border-lavender-tint text-accent hover:text-primary hover:border-accent hover:bg-lavender-tint/20 px-6 py-3 rounded-lg transition-all active:scale-[0.98]">
+                <Link href="/history" className="inline-flex items-center gap-2 text-sm font-bold border border-lavender-tint text-accent hover:text-primary hover:border-accent hover:bg-lavender-tint/20 px-6 py-3 rounded-lg transition-all active:scale-[0.98]">
                   <span>전체 기록 대시보드 바로가기</span>
                   <ArrowRight className="w-4 h-4" />
-                </button>
+                </Link>
               </div>
             </div>
           </div>
@@ -381,10 +385,10 @@ export default function Home() {
 
           {/* Links */}
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs font-medium">
-            <a href="#" className="hover:text-accent transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-accent transition-colors">Terms of Service</a>
-            <a href="#" className="hover:text-accent transition-colors">Documentation</a>
-            <a href="#" className="hover:text-accent transition-colors">Support</a>
+            <Link href="/problem-sets/new" className="hover:text-accent transition-colors">새 풀이</Link>
+            <Link href="/problem-sets" className="hover:text-accent transition-colors">문제 세트</Link>
+            <Link href="/history" className="hover:text-accent transition-colors">풀이 기록</Link>
+            <Link href="/auth/login" className="hover:text-accent transition-colors">로그인</Link>
           </div>
         </div>
       </footer>

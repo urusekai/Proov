@@ -40,10 +40,16 @@ export function AuthShell({ title, description, children }: AuthShellProps) {
 
             <nav className="hidden items-center gap-6 text-sm font-medium text-muted-text md:flex">
               <Link
-                href="/practice"
+                href="/problem-sets/new"
                 className="relative py-1 transition-colors after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:scale-x-0 after:bg-accent after:transition-transform hover:text-accent hover:after:scale-x-100"
               >
                 새 풀이
+              </Link>
+              <Link
+                href="/problem-sets"
+                className="relative py-1 transition-colors after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:scale-x-0 after:bg-accent after:transition-transform hover:text-accent hover:after:scale-x-100"
+              >
+                문제 세트
               </Link>
               <Link
                 href="/history"

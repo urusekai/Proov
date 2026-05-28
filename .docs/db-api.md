@@ -86,7 +86,7 @@ Response:
 ```
 
 ### GET /api/problem-sets
-사이트에서 제공하는 공개 문제 세트 목록. `visibility = PUBLIC`인 세트만 반환한다. 풀이 전 목록 응답에는 PR 제목, PR URL, pull number를 포함하지 않는다.
+사이트에서 제공하는 공개 문제 세트 목록. `visibility = PUBLIC`인 세트만 반환한다.
 ```json
 {
   "items": [
@@ -101,14 +101,17 @@ Response:
       "libraryTags": ["Ky"],
       "topicTags": ["HTTP Client", "Response Parsing"],
       "questionTypeTags": ["Error Handling", "Data Flow", "Side Effect"],
-      "repository": "owner/repo"
+      "repository": "owner/repo",
+      "prTitle": "Improve response parsing context",
+      "prUrl": "https://github.com/owner/repo/pull/123",
+      "pullNumber": 123
     }
   ]
 }
 ```
 
 ### GET /api/problem-sets/:id
-문제 세트 조회. 풀이 전 화면에서는 정답, 해설, PR 제목, PR URL, pull number를 응답하지 않는다.
+문제 세트 조회. 풀이 전 화면에서는 정답과 해설을 응답하지 않는다. PR 메타데이터와 diff 표시용 정보는 응답할 수 있다.
 
 ### POST /api/problem-sets/:id/submit
 답안 제출/채점. 로그인 사용자는 submission을 저장하고, 비로그인 사용자는 저장하지 않은 결과 preview만 반환한다.

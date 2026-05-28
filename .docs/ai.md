@@ -60,7 +60,7 @@ Also create displayTitle, summary, difficulty, and estimatedMinutes for listing 
 Also create languageTags, frameworkTags, libraryTags, and topicTags for categorizing the whole problem set.
 Assign question tags per question. Do not use language/framework/library tags as question tags.
 displayTitle must describe the learning topic, not just copy the PR title.
-displayTitle and summary must not reveal the exact fix, answer condition, PR title, PR URL, or pull number.
+displayTitle and summary must not reveal the exact answer condition. Do not copy the PR title as displayTitle.
 Do not force tag diversity. Multiple questions may use the same tag.
 Prioritize question quality and diff-grounded reasoning over tag balance.
 Each question has 4 options A-D and exactly one answer.
