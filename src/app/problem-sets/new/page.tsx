@@ -1,11 +1,11 @@
 "use client";
 
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Check, GitPullRequest, X } from "lucide-react";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { getSession } from "@/lib/supabase";
+import { apiFetch, getSession } from "@/lib/supabase";
 
 const loadingPhases = [
   "Pull Request URL을 확인하고 있습니다.",
@@ -26,6 +26,8 @@ function ProblemSetNewContent() {
   const [loadingStep, setLoadingStep] = useState(0);
   const [loadingDotTick, setLoadingDotTick] = useState(0);
   const [authChecked, setAuthChecked] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const autoStartedRef = useRef(false);
 
   useEffect(() => {
     getSession().then((session) => {
@@ -43,13 +45,7 @@ function ProblemSetNewContent() {
 
     const interval = window.setInterval(() => {
       setLoadingStep((prev) => {
-        if (prev >= loadingPhases.length - 1) {
-          window.clearInterval(interval);
-          window.setTimeout(() => {
-            router.push("/problem-sets/hono-ipv6-string-formatting");
-          }, 650);
-          return prev;
-        }
+        if (prev >= loadingPhases.length - 1) return prev;
         return prev + 1;
       });
     }, 950);
@@ -67,12 +63,46 @@ function ProblemSetNewContent() {
     return () => window.clearInterval(interval);
   }, [step]);
 
-  const handleStart = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const startGeneration = () => {
     if (!prUrl.trim()) return;
     setStep("LOADING");
     setLoadingStep(0);
+    setErrorMessage("");
+
+    apiFetch("/api/problem-sets/generate", {
+      method: "POST",
+      body: JSON.stringify({ prUrl }),
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.message ?? "문제 생성에 실패했습니다.");
+        }
+        return data as { problemSetId: string };
+      })
+      .then((data) => {
+        setLoadingStep(loadingPhases.length - 1);
+        window.setTimeout(() => {
+          router.push(`/problem-sets/${data.problemSetId}`);
+        }, 500);
+      })
+      .catch((error) => {
+        setErrorMessage(error instanceof Error ? error.message : "문제 생성에 실패했습니다.");
+        setStep("ERROR");
+      });
   };
+
+  const handleStart = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    startGeneration();
+  };
+
+  useEffect(() => {
+    if (!authChecked || !initialPrUrl || autoStartedRef.current) return;
+    autoStartedRef.current = true;
+    window.setTimeout(() => startGeneration(), 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authChecked, initialPrUrl]);
 
   const loadingDots = (loadingDotTick % 3) + 1;
 
@@ -195,7 +225,9 @@ function ProblemSetNewContent() {
             <div className="bg-white rounded-xl border border-rose-200 shadow-default p-8 text-center">
               <X className="w-8 h-8 text-rose-500 mx-auto mb-3" />
               <p className="text-lg font-bold text-text mb-1">문제 생성에 실패했습니다.</p>
-              <p className="text-sm text-muted-text mb-6">PR URL을 확인한 뒤 다시 시도해주세요.</p>
+              <p className="text-sm text-muted-text mb-6">
+                {errorMessage || "PR URL을 확인한 뒤 다시 시도해주세요."}
+              </p>
               <button
                 type="button"
                 onClick={() => setStep("INPUT")}

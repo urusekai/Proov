@@ -1,15 +1,15 @@
 "use client";
 
-import React, { useState, useSyncExternalStore } from "react";
+import React, { useEffect, useState } from "react";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, ArrowRight, Menu, X, Lock, GitPullRequest, ExternalLink, Link2, Sparkles, ClipboardList, History, ChevronRight, LogOut } from "lucide-react";
 import { publicProblemSetSummaries } from "@/data/curated-problem-sets";
 import type { QuestionTag, ProblemSetDifficulty } from "@/data/curated-problem-sets";
-import { mockSubmissions } from "@/data/mock-history";
-import { getMockSession, mockSignOut, subscribeMockAuth, type MockSession } from "@/lib/mock-auth";
+import { apiFetch, getSession, signOut, subscribeAuth, type AppSession } from "@/lib/supabase";
 import { SiteFooter } from "@/components/site-footer";
+import type { SubmissionListItemData } from "@/lib/types";
 import { SubmissionListItem } from "@/components/submission-list-item";
 
 // Proov SVG Logo Component
@@ -132,10 +132,6 @@ function LandingProblemSetCard({ ps }: { ps: (typeof publicProblemSetSummaries)[
   );
 }
 
-function getServerSnapshot(): MockSession | null {
-  return null;
-}
-
 function getDailyRandomSets(count: number) {
   const d = new Date();
   const seed = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
@@ -146,19 +142,37 @@ function getDailyRandomSets(count: number) {
     .map(({ ps }) => ps);
 }
 
-function DashboardView({ session }: { session: MockSession }) {
+function DashboardView({ session }: { session: AppSession }) {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  const recentSubmissions = [...mockSubmissions]
-    .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
-    .slice(0, 3);
+  const [recentSubmissions, setRecentSubmissions] = useState<SubmissionListItemData[]>([]);
 
   const dailySets = getDailyRandomSets(3);
 
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch("/api/submissions")
+      .then((res) => {
+        if (!res.ok) throw new Error("fetch failed");
+        return res.json();
+      })
+      .then((data: { items: SubmissionListItemData[] }) => {
+        if (cancelled) return;
+        const sorted = [...data.items].sort(
+          (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
+        );
+        setRecentSubmissions(sorted.slice(0, 3));
+      })
+      .catch(() => {
+        if (!cancelled) setRecentSubmissions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleSignOut = () => {
-    mockSignOut();
-    router.push("/");
+    signOut().then(() => router.push("/"));
   };
 
   return (
@@ -322,8 +336,25 @@ function DashboardView({ session }: { session: MockSession }) {
 
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [session, setSession] = useState<AppSession | null>(null);
+  const [authReady, setAuthReady] = useState(false);
 
-  const session = useSyncExternalStore(subscribeMockAuth, getMockSession, getServerSnapshot);
+  useEffect(() => {
+    let mounted = true;
+    const refresh = () => {
+      getSession().then((nextSession) => {
+        if (!mounted) return;
+        setSession(nextSession);
+        setAuthReady(true);
+      });
+    };
+    refresh();
+    return subscribeAuth(refresh);
+  }, []);
+
+  if (!authReady) {
+    return null;
+  }
 
   if (session) {
     return <DashboardView session={session} />;

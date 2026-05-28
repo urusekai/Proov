@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BookOpen, ArrowRight, ExternalLink, GitPullRequest } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
@@ -10,6 +10,7 @@ import {
   publicProblemSetSummaries,
   QuestionTag,
 } from "@/data/curated-problem-sets";
+import type { ProblemSetSummary } from "@/lib/types";
 
 const TAG_LABELS: Record<QuestionTag, string> = {
   CODE_BEHAVIOR: "Code Behavior",
@@ -38,24 +39,49 @@ const DIFFICULTY_STYLE: Record<string, string> = {
 
 type SortOption = "latest" | "difficulty-asc" | "difficulty-desc";
 
-const ALL_LANGUAGES = Array.from(
-  new Set(publicProblemSetSummaries.flatMap((s) => s.languageTags))
-).sort();
-
-const ALL_FRAMEWORKS = Array.from(
-  new Set(publicProblemSetSummaries.flatMap((s) => s.frameworkTags))
-).sort();
-
 const DIFFICULTY_ORDER = { BEGINNER: 0, INTERMEDIATE: 1, ADVANCED: 2 };
 
 export default function ProblemSetsPage() {
+  const [problemSets, setProblemSets] = useState<ProblemSetSummary[]>(
+    publicProblemSetSummaries as ProblemSetSummary[]
+  );
   const [filterDifficulty, setFilterDifficulty] = useState<string>("ALL");
   const [filterLanguage, setFilterLanguage] = useState<string>("ALL");
   const [filterFramework, setFilterFramework] = useState<string>("ALL");
   const [sortBy, setSortBy] = useState<SortOption>("latest");
 
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/problem-sets")
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((data: { items: ProblemSetSummary[] }) => {
+        if (!cancelled) setProblemSets(data.items);
+      })
+      .catch(() => {
+        if (!cancelled) setProblemSets(publicProblemSetSummaries as ProblemSetSummary[]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const allLanguages = useMemo(
+    () =>
+      Array.from(
+        new Set(publicProblemSetSummaries.flatMap((s) => s.languageTags))
+      ).sort(),
+    []
+  );
+  const allFrameworks = useMemo(
+    () =>
+      Array.from(
+        new Set(publicProblemSetSummaries.flatMap((s) => s.frameworkTags))
+      ).sort(),
+    []
+  );
+
   const filtered = useMemo(() => {
-    let list = [...publicProblemSetSummaries];
+    let list = [...problemSets];
 
     if (filterDifficulty !== "ALL") {
       list = list.filter((s) => s.difficulty === filterDifficulty);
@@ -71,7 +97,12 @@ export default function ProblemSetsPage() {
       );
     }
 
-    if (sortBy === "difficulty-asc") {
+    if (sortBy === "latest") {
+      list.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    } else if (sortBy === "difficulty-asc") {
       list.sort(
         (a, b) =>
           DIFFICULTY_ORDER[a.difficulty] - DIFFICULTY_ORDER[b.difficulty]
@@ -84,7 +115,7 @@ export default function ProblemSetsPage() {
     }
 
     return list;
-  }, [filterDifficulty, filterLanguage, filterFramework, sortBy]);
+  }, [problemSets, filterDifficulty, filterLanguage, filterFramework, sortBy]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans">
@@ -124,22 +155,20 @@ export default function ProblemSetsPage() {
               onChange={setFilterLanguage}
               options={[
                 { value: "ALL", label: "전체 언어" },
-                ...ALL_LANGUAGES.map((l) => ({ value: l, label: l })),
+                  ...allLanguages.map((l) => ({ value: l, label: l })),
               ]}
             />
 
             {/* Framework filter */}
-            {ALL_FRAMEWORKS.length > 0 && (
-              <FilterSelect
-                label="프레임워크"
-                value={filterFramework}
-                onChange={setFilterFramework}
-                options={[
-                  { value: "ALL", label: "전체 프레임워크" },
-                  ...ALL_FRAMEWORKS.map((f) => ({ value: f, label: f })),
-                ]}
-              />
-            )}
+            <FilterSelect
+              label="프레임워크"
+              value={filterFramework}
+              onChange={setFilterFramework}
+              options={[
+                { value: "ALL", label: "전체 프레임워크" },
+                ...allFrameworks.map((f) => ({ value: f, label: f })),
+              ]}
+            />
 
             <div className="ml-auto">
               <FilterSelect
@@ -188,7 +217,7 @@ export default function ProblemSetsPage() {
 function ProblemSetCard({
   set,
 }: {
-  set: (typeof publicProblemSetSummaries)[number];
+  set: ProblemSetSummary;
 }) {
   const techTags = [
     ...set.languageTags.map((tag) => ({ kind: "language", tag })),
@@ -227,7 +256,7 @@ function ProblemSetCard({
             </p>
           </div>
           <p className="text-sm font-semibold text-text leading-relaxed line-clamp-2">
-            {set.sourcePrTitle}
+            {set.prTitle}
           </p>
         </div>
 
@@ -251,13 +280,13 @@ function ProblemSetCard({
             </div>
           )}
 
-          {set.primaryTags.length > 0 && (
+          {set.questionTypeTags.length > 0 && (
             <div>
               <p className="text-xs font-semibold text-muted-text mb-2">
                 문제 유형
               </p>
               <div className="flex flex-wrap gap-1.5">
-                {set.primaryTags.map((tag) => (
+                {set.questionTypeTags.map((tag) => (
                   <span
                     key={tag}
                     className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-accent/10 text-accent"
@@ -274,7 +303,7 @@ function ProblemSetCard({
       {/* Card Footer */}
       <div className="px-6 md:px-8 pb-6 pt-0 flex items-center justify-end gap-2">
           <a
-            href={set.sourceUrl}
+            href={set.prUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-lavender-tint px-4 text-sm font-semibold text-accent transition-all hover:border-accent hover:bg-lavender-tint/20 active:scale-[0.98]"

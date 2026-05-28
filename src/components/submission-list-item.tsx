@@ -22,7 +22,7 @@ function scoreColor(score: number) {
 }
 
 function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
+  const d = new Date(dateStr.includes("T") ? dateStr : dateStr + "T00:00:00");
   return `${d.getMonth() + 1}월 ${d.getDate()}일`;
 }
 

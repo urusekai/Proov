@@ -6,7 +6,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { AuthShell } from "../_components/auth-shell";
-import { getMockSession, mockSignIn } from "@/lib/mock-auth";
+import { getSession, supabase } from "@/lib/supabase";
 
 function LoginForm() {
   const router = useRouter();
@@ -15,10 +15,11 @@ function LoginForm() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (getMockSession()) {
+    getSession().then((session) => {
+      if (!session) return;
       const redirect = searchParams.get("redirect") ?? "/";
       router.replace(redirect);
-    }
+    });
   }, [router, searchParams]);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -27,13 +28,20 @@ function LoginForm() {
     const email = (form.elements.namedItem("email") as HTMLInputElement).value;
     const password = (form.elements.namedItem("password") as HTMLInputElement).value;
 
-    const session = mockSignIn(email, password);
-    if (session) {
-      const redirect = searchParams.get("redirect") ?? "/problem-sets/new";
-      router.push(redirect);
-    } else {
-      setError("이메일 또는 비밀번호가 올바르지 않습니다.");
+    const redirect = searchParams.get("redirect") ?? "/problem-sets/new";
+
+    if (!supabase) {
+      setError("Supabase 환경 변수가 없어 로그인할 수 없습니다.");
+      return;
     }
+
+    supabase.auth.signInWithPassword({ email, password }).then(({ error: signInError }) => {
+      if (signInError) {
+        setError("이메일 또는 비밀번호가 올바르지 않습니다.");
+        return;
+      }
+      router.push(redirect);
+    });
   };
 
   return (

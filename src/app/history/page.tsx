@@ -1,16 +1,16 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, useSyncExternalStore } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { History, BookOpen } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { FilterSelect } from "@/components/filter-select";
-import { mockSubmissions } from "@/data/mock-history";
 import type { QuestionTag } from "@/data/curated-problem-sets";
-import { getMockSession } from "@/lib/mock-auth";
+import { apiFetch, getSession } from "@/lib/supabase";
 import { SubmissionListItem, SubmissionListItemSkeleton } from "@/components/submission-list-item";
+import type { SubmissionListItemData } from "@/lib/types";
 
 type SortOption = "date" | "score-desc" | "score-asc";
 type AuthStatus = "checking" | "authenticated" | "unauthenticated";
@@ -73,35 +73,41 @@ function countStreak(dateStrings: string[]): number {
   return streak;
 }
 
-function subscribeAuth(onStoreChange: () => void) {
-  window.addEventListener("storage", onStoreChange);
-  return () => window.removeEventListener("storage", onStoreChange);
-}
-function getAuthSnapshot(): AuthStatus {
-  return getMockSession() ? "authenticated" : "unauthenticated";
-}
-function getServerAuthSnapshot(): AuthStatus {
-  return "checking";
-}
-
 export default function HistoryPage() {
   const router = useRouter();
   const [sortBy, setSortBy] = useState<SortOption>("date");
-
-  const authStatus = useSyncExternalStore(
-    subscribeAuth,
-    getAuthSnapshot,
-    getServerAuthSnapshot
-  );
+  const [authStatus, setAuthStatus] = useState<AuthStatus>("checking");
+  const [submissions, setSubmissions] = useState<SubmissionListItemData[]>([]);
 
   useEffect(() => {
-    if (authStatus === "unauthenticated") {
-      router.replace("/auth/login?redirect=/history");
-    }
-  }, [authStatus, router]);
+    let cancelled = false;
+    getSession().then((session) => {
+      if (cancelled) return;
+      if (!session) {
+        setAuthStatus("unauthenticated");
+        router.replace("/auth/login?redirect=/history");
+        return;
+      }
+      setAuthStatus("authenticated");
+      apiFetch("/api/submissions")
+        .then((res) => {
+          if (!res.ok) throw new Error("fetch failed");
+          return res.json();
+        })
+        .then((data: { items: SubmissionListItemData[] }) => {
+          if (!cancelled) setSubmissions(data.items);
+        })
+        .catch(() => {
+          if (!cancelled) setSubmissions([]);
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   const sorted = useMemo(() => {
-    const list = [...mockSubmissions];
+    const list = [...submissions];
     if (sortBy === "date")
       return list.sort(
         (a, b) =>
@@ -109,14 +115,14 @@ export default function HistoryPage() {
       );
     if (sortBy === "score-desc") return list.sort((a, b) => b.score - a.score);
     return list.sort((a, b) => a.score - b.score);
-  }, [sortBy]);
+  }, [submissions, sortBy]);
 
-  const totalCount = mockSubmissions.length;
-  const totalQuestionCount = mockSubmissions.reduce(
+  const totalCount = submissions.length;
+  const totalQuestionCount = submissions.reduce(
     (acc, submission) => acc + submission.answers.length,
     0
   );
-  const tagStats = mockSubmissions.reduce(
+  const tagStats = submissions.reduce(
     (acc, submission) => {
       submission.answers.forEach((answer) => {
         const current = acc[answer.tag] ?? { correct: 0, total: 0 };
@@ -151,20 +157,20 @@ export default function HistoryPage() {
         })[0]
       : null;
   const streakDays = countStreak(
-    mockSubmissions.map((submission) => submission.submittedAt)
+    submissions.map((submission) => submission.submittedAt)
   );
   const isLoading = authStatus === "checking";
   const isReady = authStatus === "authenticated";
 
   const difficultyStats = useMemo(() => {
-    return mockSubmissions.reduce(
+    return submissions.reduce(
       (acc, sub) => {
         acc[sub.difficulty] = (acc[sub.difficulty] ?? 0) + 1;
         return acc;
       },
       {} as Partial<Record<"BEGINNER" | "INTERMEDIATE" | "ADVANCED", number>>
     );
-  }, []);
+  }, [submissions]);
 
   if (!isLoading && !isReady) return null;
 

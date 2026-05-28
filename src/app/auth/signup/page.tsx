@@ -2,23 +2,55 @@
 
 import Link from "next/link";
 import { Eye, EyeOff, LockKeyhole, Mail, User } from "lucide-react";
-import { FormEvent, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { FormEvent, Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AuthShell } from "../_components/auth-shell";
-import { getMockSession } from "@/lib/mock-auth";
+import { getSession, supabase } from "@/lib/supabase";
 
-export default function SignupPage() {
+function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   useEffect(() => {
-    if (getMockSession()) {
-      router.replace("/");
-    }
-  }, [router]);
+    getSession().then((session) => {
+      if (!session) return;
+      router.replace(searchParams.get("redirect") ?? "/");
+    });
+  }, [router, searchParams]);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const form = event.currentTarget;
+    const nickname = (form.elements.namedItem("name") as HTMLInputElement).value;
+    const email = (form.elements.namedItem("email") as HTMLInputElement).value;
+    const password = (form.elements.namedItem("password") as HTMLInputElement).value;
+
+    setError("");
+    setNotice("");
+
+    if (!supabase) {
+      setError("Supabase 환경 변수가 없어 회원가입을 처리할 수 없습니다.");
+      return;
+    }
+
+    supabase.auth
+      .signUp({
+        email,
+        password,
+        options: {
+          data: { nickname },
+        },
+      })
+      .then(({ error: signUpError }) => {
+        if (signUpError) {
+          setError(signUpError.message);
+          return;
+        }
+        setNotice("회원가입이 완료되었습니다. 이메일 인증 설정이 켜져 있다면 메일을 확인해 주세요.");
+      });
   };
 
   return (
@@ -109,6 +141,17 @@ export default function SignupPage() {
         </button>
       </form>
 
+      {error && (
+        <p className="mt-4 rounded-lg bg-rose-50 px-4 py-3 text-sm font-medium text-rose-600 border border-rose-100">
+          {error}
+        </p>
+      )}
+      {notice && (
+        <p className="mt-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 border border-emerald-100">
+          {notice}
+        </p>
+      )}
+
       <p className="mt-6 text-center text-sm text-muted-text">
         이미 계정이 있나요?{" "}
         <Link href="/auth/login" className="font-bold text-accent transition-colors hover:text-primary">
@@ -116,5 +159,13 @@ export default function SignupPage() {
         </Link>
       </p>
     </AuthShell>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignupForm />
+    </Suspense>
   );
 }

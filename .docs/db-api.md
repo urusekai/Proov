@@ -30,7 +30,7 @@
 - base_branch text
 - head_branch text
 - ai_model text
-- raw_ai_response jsonb
+- raw_ai_response jsonb, 생성 결과와 diff 표시용 `github.files` 보관
 - created_at timestamp
 
 ### questions
@@ -103,11 +103,14 @@ Response:
       "repository": "owner/repo",
       "prTitle": "Improve response parsing context",
       "prUrl": "https://github.com/owner/repo/pull/123",
-      "pullNumber": 123
+      "pullNumber": 123,
+      "createdAt": "2026-05-28T00:00:00.000Z"
     }
   ]
 }
 ```
+
+목록 API는 `created_at` 내림차순으로 조회한다. 클라이언트 최신순 정렬은 `createdAt` 기준이다.
 
 ### GET /api/problem-sets/:id
 문제 세트 조회. 풀이 전 화면에서는 정답과 해설을 응답하지 않는다. PR 메타데이터와 diff 표시용 정보는 응답할 수 있다.
@@ -140,6 +143,22 @@ Response:
 }
 ```
 
+Response:
+```json
+{
+  "result": {
+    "id": "uuid-or-null",
+    "saved": true,
+    "score": 67,
+    "correctCount": 2,
+    "totalCount": 3,
+    "submittedAt": "2026-05-28T00:00:00.000Z",
+    "problemSet": {},
+    "answers": []
+  }
+}
+```
+
 ### GET /api/submissions
 내 풀이 기록 목록.
 
@@ -156,6 +175,9 @@ Response:
 - submissions, submission_answers는 user_id로 소유권 확인
 - Supabase RLS 적용
 - service role key, OpenAI key, GitHub token은 서버 전용
+- Supabase 적용 SQL은 `supabase/schema.sql`에 둔다. 초기화는 `supabase/reset.sql`로 public 테이블을 삭제한 뒤 `schema.sql`을 다시 실행한다.
+- 로컬/개발 시드 계정: `testuser@naver.com` / 비밀번호 `testuser`, 프로필 닉네임 `testuser` (`schema.sql`의 `@@DEV_SEED` 구간).
+- 큐레이션 `created_at`은 저장소명에 `tone` 또는 `goreon`이 포함된 세트가 최신순 앞에 오도록 시드한다.
 
 ## Tag Modeling
 - MVP 초기 구현은 `problem_sets`의 세트 태그 배열과 `questions.tag` 문항 태그를 사용한다.

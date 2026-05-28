@@ -16,8 +16,7 @@ import {
 } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
-import { curatedProblemSets, QuestionTag } from "@/data/curated-problem-sets";
-import { getMockSession, subscribeMockAuth } from "@/lib/mock-auth";
+import type { QuestionTag, SubmissionResult } from "@/lib/types";
 
 const TAG_LABELS: Record<QuestionTag, string> = {
   CODE_BEHAVIOR: "Code Behavior",
@@ -53,35 +52,30 @@ function getServerAnswersSnapshot() {
   return "";
 }
 
-function getServerAuthSnapshot() {
-  return null;
-}
-
 export default function ProblemSetResultPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const problemSet = curatedProblemSets.find((s) => s.id === id);
 
-  const storedAnswers = useSyncExternalStore(
+  const storedResult = useSyncExternalStore(
     subscribeSessionStorage,
-    () => sessionStorage.getItem(`answers-${id}`) ?? "",
+    () => sessionStorage.getItem(`result-${id}`) ?? "",
     getServerAnswersSnapshot
   );
 
-  const session = useSyncExternalStore(subscribeMockAuth, getMockSession, getServerAuthSnapshot);
-
-  const answers = useMemo<Record<number, "A" | "B" | "C" | "D">>(() => {
-    if (!storedAnswers) return {};
+  const result = useMemo<SubmissionResult | null>(() => {
+    if (!storedResult) return null;
 
     try {
-      return JSON.parse(storedAnswers);
+      return JSON.parse(storedResult) as SubmissionResult;
     } catch {
-      return {};
+      return null;
     }
-  }, [storedAnswers]);
+  }, [storedResult]);
+
+  const problemSet = result?.problemSet;
 
   if (!problemSet) {
     return (
@@ -105,13 +99,7 @@ export default function ProblemSetResultPage({
   }
 
   const { questions } = problemSet;
-
-  const correctCount = questions.reduce((acc, q, i) => {
-    return acc + (answers[i] === q.answer ? 1 : 0);
-  }, 0);
-
-  const score =
-    correctCount === 3 ? 100 : correctCount === 2 ? 67 : correctCount === 1 ? 33 : 0;
+  const score = result.score;
 
   const techTags = [
     ...problemSet.languageTags,
@@ -158,7 +146,7 @@ export default function ProblemSetResultPage({
                   <div>
                     <p className="text-xs font-semibold text-muted-text mb-2">문제 유형</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {problemSet.primaryTags.map((tag) => (
+                      {problemSet.questionTypeTags.map((tag) => (
                         <span
                           key={tag}
                           className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-accent/10 text-accent"
@@ -196,11 +184,11 @@ export default function ProblemSetResultPage({
                     </p>
                   </div>
                   <p className="text-sm font-semibold text-text leading-relaxed">
-                    {problemSet.sourcePrTitle}
+                    {problemSet.prTitle}
                   </p>
                 </div>
                 <a
-                  href={problemSet.sourceUrl}
+                  href={problemSet.prUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex h-10 items-center gap-2 rounded-lg border border-lavender-tint px-4 text-sm font-semibold text-accent transition-all hover:border-accent hover:bg-lavender-tint/20 active:scale-[0.98]"
@@ -214,8 +202,9 @@ export default function ProblemSetResultPage({
 
           <div className="space-y-4">
             {questions.map((q, i) => {
-              const selected = answers[i];
-              const isCorrect = selected === q.answer;
+              const answer = result.answers.find((item) => item.questionId === q.id);
+              const selected = answer?.selectedAnswer;
+              const isCorrect = Boolean(answer?.isCorrect);
 
               return (
                 <div
@@ -255,7 +244,7 @@ export default function ProblemSetResultPage({
                       {/* Options result */}
                       <div className="space-y-2">
                         {q.options.map((opt) => {
-                          const isAnswer = opt.id === q.answer;
+                          const isAnswer = opt.id === answer?.correctAnswer;
                           const isUserSelect = opt.id === selected;
                           let cls =
                             "border-lavender-tint text-muted-text bg-background";
@@ -297,7 +286,7 @@ export default function ProblemSetResultPage({
                         해설
                       </p>
                       <p className="text-sm text-text leading-relaxed mb-5">
-                        {q.explanation}
+                        {answer?.explanation ?? q.explanation}
                       </p>
 
                       {q.relatedFiles.length > 0 && (
@@ -327,7 +316,7 @@ export default function ProblemSetResultPage({
 
           {/* Actions */}
           <div className="mt-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            {session ? (
+            {result.saved ? (
               <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3">
                 <BookCheck className="w-4 h-4 shrink-0" />
                 <span className="font-medium">풀이 기록이 저장되었습니다.</span>
@@ -353,7 +342,7 @@ export default function ProblemSetResultPage({
                 <RotateCcw className="w-4 h-4" />
                 다시 풀기
               </Link>
-              {!session && (
+              {!result.saved && (
                 <Link
                   href="/auth/login"
                   className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-accent text-white rounded-lg shadow-sm hover:bg-primary hover:shadow-default transition-all active:scale-[0.98]"

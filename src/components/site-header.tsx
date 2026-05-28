@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useSyncExternalStore } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Menu, X, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { getMockSession, mockSignOut, subscribeMockAuth, type MockSession } from "@/lib/mock-auth";
+import { getSession, signOut, subscribeAuth, type AppSession } from "@/lib/supabase";
 
 const ProovLogo = ({ className = "w-6 h-6" }: { className?: string }) => (
   <svg
@@ -26,15 +26,25 @@ const navLinks = [
   { href: "/history", label: "내 기록" },
 ];
 
-function getServerSnapshot(): MockSession | null {
-  return null;
-}
-
 export function SiteHeader({ activePath }: { activePath?: string }) {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [session, setSession] = useState<AppSession | null>(null);
 
-  const session = useSyncExternalStore(subscribeMockAuth, getMockSession, getServerSnapshot);
+  useEffect(() => {
+    let mounted = true;
+    const refresh = () => {
+      getSession().then((nextSession) => {
+        if (mounted) setSession(nextSession);
+      });
+    };
+    refresh();
+    const unsubscribe = subscribeAuth(refresh);
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, []);
 
   const isLinkActive = (href: string) =>
     activePath === href ||
@@ -43,7 +53,7 @@ export function SiteHeader({ activePath }: { activePath?: string }) {
       activePath?.startsWith(`${href}/`));
 
   const handleSignOut = () => {
-    mockSignOut();
+    signOut();
     router.push("/");
   };
 

@@ -13,10 +13,8 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
-import {
-  curatedProblemSets,
-  QuestionTag,
-} from "@/data/curated-problem-sets";
+import { apiFetch } from "@/lib/supabase";
+import type { ProblemSetDetail, QuestionTag } from "@/lib/types";
 
 const TAG_LABELS: Record<QuestionTag, string> = {
   CODE_BEHAVIOR: "Code Behavior",
@@ -97,20 +95,44 @@ export default function ProblemSetSolvePage({
 }) {
   const { id } = use(params);
   const router = useRouter();
-  const problemSet = curatedProblemSets.find((s) => s.id === id);
+  const [problemSet, setProblemSet] = useState<ProblemSetDetail | null>(null);
+  const [notFound, setNotFound] = useState(false);
 
   const [currentQ, setCurrentQ] = useState(0);
   const [answers, setAnswers] = useState<Record<number, "A" | "B" | "C" | "D">>({});
-  const [activeFile, setActiveFile] = useState<string>(
-    () => problemSet?.sourceFiles[0] ?? ""
-  );
+  const [activeFile, setActiveFile] = useState<string>("");
   const [diffState, setDiffState] = useState<DiffState>({
     status: "loading",
     files: [],
   });
 
   useEffect(() => {
-    if (!problemSet) return;
+    let cancelled = false;
+
+    apiFetch(`/api/problem-sets/${id}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("fetch failed");
+        return res.json();
+      })
+      .then((data: { item: ProblemSetDetail }) => {
+        if (cancelled) return;
+        setProblemSet(data.item);
+        setActiveFile(data.item.sourceFiles[0] ?? "");
+        if (data.item.diffFiles && data.item.diffFiles.length > 0) {
+          setDiffState({ status: "ready", files: data.item.diffFiles });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setNotFound(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  useEffect(() => {
+    if (!problemSet || (problemSet.diffFiles && problemSet.diffFiles.length > 0)) return;
     let cancelled = false;
 
     const { repositoryOwner, repositoryName, pullNumber } = problemSet;
@@ -146,7 +168,7 @@ export default function ProblemSetSolvePage({
     };
   }, [problemSet]);
 
-  if (!problemSet) {
+  if (notFound) {
     return (
       <div className="min-h-screen bg-background flex flex-col font-sans">
         <SiteHeader activePath="/problem-sets" />
@@ -166,6 +188,8 @@ export default function ProblemSetSolvePage({
       </div>
     );
   }
+
+  if (!problemSet) return null;
 
   const question = problemSet.questions[currentQ];
   const totalQ = problemSet.questions.length;
@@ -202,11 +226,30 @@ export default function ProblemSetSolvePage({
         JSON.stringify(answers)
       );
     }
-    router.push(`/problem-sets/${id}/result`);
+    apiFetch(`/api/problem-sets/${id}/submit`, {
+      method: "POST",
+      body: JSON.stringify({
+        answers: problemSet.questions.map((question, index) => ({
+          questionId: question.id,
+          selectedAnswer: answers[index],
+        })),
+      }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("submit failed");
+        return res.json();
+      })
+      .then((data) => {
+        sessionStorage.setItem(`result-${id}`, JSON.stringify(data.result));
+        router.push(`/problem-sets/${id}/result`);
+      })
+      .catch(() => {
+        router.push(`/problem-sets/${id}/result`);
+      });
   };
 
   const allAnswered = Object.keys(answers).length === totalQ;
-  const finalPrUrl = problemSet.sourceUrl;
+  const finalPrUrl = problemSet.prUrl;
 
   return (
     <div className="h-screen overflow-hidden flex flex-col bg-background font-sans selection:bg-accent/20">
@@ -231,9 +274,9 @@ export default function ProblemSetSolvePage({
                 </div>
                 <h1
                   className="text-sm md:text-base font-bold text-text truncate max-w-[320px] md:max-w-[480px]"
-                  title={problemSet.sourcePrTitle}
+                  title={problemSet.prTitle}
                 >
-                  {problemSet.sourcePrTitle}
+                  {problemSet.prTitle}
                 </h1>
               </div>
             </div>
@@ -310,7 +353,7 @@ export default function ProblemSetSolvePage({
                         문제를 계속 풀어보세요.
                       </p>
                       <a
-                        href={problemSet.sourcePatchUrl}
+                        href={problemSet.sourcePatchUrl ?? `${problemSet.prUrl}.patch`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-xs text-accent hover:underline"
@@ -332,7 +375,7 @@ export default function ProblemSetSolvePage({
                           이 파일의 diff를 표시할 수 없습니다.
                         </p>
                         <a
-                          href={`${problemSet.sourceUrl}/files`}
+                          href={`${problemSet.prUrl}/files`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs text-accent hover:underline"

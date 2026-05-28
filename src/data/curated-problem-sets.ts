@@ -1387,6 +1387,32 @@ export const curatedProblemSets = [
   },
 ] as const satisfies CuratedProblemSet[];
 
+/** 큐레이션 목록 배열 순서 기준 공개 시각(앞쪽일수록 최신) */
+const CURATED_CREATED_AT_BASE_MS = Date.UTC(2026, 4, 1);
+
+function isFeaturedCuratedRepository(repositoryName: string): boolean {
+  const normalized = repositoryName.toLowerCase();
+  return normalized.includes("tone") || normalized.includes("goreon");
+}
+
+/** TONE·GOREON 저장소 문제를 최신순 앞쪽에 두고, 나머지는 그 뒤에 배치 */
+function curatedSetsByRecency() {
+  const featured = curatedProblemSets.filter((set) =>
+    isFeaturedCuratedRepository(set.repositoryName)
+  );
+  const regular = curatedProblemSets.filter(
+    (set) => !isFeaturedCuratedRepository(set.repositoryName)
+  );
+  return [...featured, ...regular];
+}
+
+export function getCuratedCreatedAt(slug: string): string {
+  const ordered = curatedSetsByRecency();
+  const index = ordered.findIndex((set) => set.id === slug);
+  const order = index === -1 ? ordered.length : index;
+  return new Date(CURATED_CREATED_AT_BASE_MS - order * 86_400_000).toISOString();
+}
+
 export const publicProblemSetSummaries = curatedProblemSets.map((problemSet) => ({
   id: problemSet.id,
   displayTitle: problemSet.displayTitle,
@@ -1398,8 +1424,17 @@ export const publicProblemSetSummaries = curatedProblemSets.map((problemSet) => 
   libraryTags: problemSet.libraryTags,
   topicTags: problemSet.topicTags,
   repository: problemSet.repository,
+  repositoryOwner: problemSet.repositoryOwner,
+  repositoryName: problemSet.repositoryName,
   pullNumber: problemSet.pullNumber,
+  prUrl: problemSet.sourceUrl,
+  prTitle: problemSet.sourcePrTitle,
   sourceUrl: problemSet.sourceUrl,
   sourcePrTitle: problemSet.sourcePrTitle,
+  sourceType: problemSet.sourceType,
+  visibility: problemSet.visibility,
+  estimatedMinutes: 8,
+  questionTypeTags: problemSet.primaryTags,
   questionCount: problemSet.questions.length,
+  createdAt: getCuratedCreatedAt(problemSet.id),
 }));

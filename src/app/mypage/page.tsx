@@ -1,26 +1,15 @@
 "use client";
 
-import React, { ChangeEvent, FormEvent, useEffect, useState, useSyncExternalStore } from "react";
+import React, { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Camera, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, Trash2, User } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
-import {
-  getMockSession,
-  mockChangePassword,
-  mockDeleteAccount,
-  mockUpdateProfile,
-  subscribeMockAuth,
-  type MockSession,
-} from "@/lib/mock-auth";
-
-function getServerSnapshot(): MockSession | null {
-  return null;
-}
+import { apiFetch, getSession, signOut, supabase, type AppSession } from "@/lib/supabase";
 
 export default function MyPage() {
   const router = useRouter();
-  const session = useSyncExternalStore(subscribeMockAuth, getMockSession, getServerSnapshot);
+  const [session, setSession] = useState<AppSession | null>(null);
 
   // 프로필 폼
   const [nicknameDraft, setNicknameDraft] = useState<string | null>(null);
@@ -42,11 +31,18 @@ export default function MyPage() {
   const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const current = getMockSession();
-    if (!current) {
-      router.replace("/auth/login?redirect=/mypage");
-    }
+    let cancelled = false;
+    getSession().then((current) => {
+      if (cancelled) return;
+      if (!current) {
+        router.replace("/auth/login?redirect=/mypage");
+        return;
+      }
+      setSession(current);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   const nickname = nicknameDraft ?? session?.user.nickname ?? "";
@@ -102,11 +98,37 @@ export default function MyPage() {
     }
     setNicknameError("");
     if (avatarError) return;
-    mockUpdateProfile({ nickname: trimmed, avatar_url: avatarUrl });
-    setNicknameDraft(null);
-    setAvatarUrlDraft(undefined);
-    setProfileSaved(true);
-    setTimeout(() => setProfileSaved(false), 2500);
+    if (!supabase) {
+      setNicknameError("Supabase 환경 변수가 없어 프로필을 저장할 수 없습니다.");
+      return;
+    }
+
+    apiFetch("/api/profile", {
+      method: "PATCH",
+      body: JSON.stringify({ nickname: trimmed, avatarUrl }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("profile failed");
+        return res.json();
+      })
+      .then((data) => {
+        setSession((prev) =>
+          prev
+            ? {
+                user: {
+                  ...prev.user,
+                  nickname: data.profile.nickname,
+                  avatar_url: data.profile.avatarUrl,
+                },
+              }
+            : prev
+        );
+        setNicknameDraft(null);
+        setAvatarUrlDraft(undefined);
+        setProfileSaved(true);
+        setTimeout(() => setProfileSaved(false), 2500);
+      })
+      .catch(() => setNicknameError("프로필을 저장하지 못했습니다."));
   };
 
   const handlePasswordSubmit = (e: FormEvent<HTMLFormElement>) => {
@@ -121,8 +143,8 @@ export default function MyPage() {
       setPwError("새 비밀번호를 입력해 주세요.");
       return;
     }
-    if (newPw.length < 4) {
-      setPwError("새 비밀번호는 4자 이상이어야 합니다.");
+    if (newPw.length < 8) {
+      setPwError("새 비밀번호는 8자 이상이어야 합니다.");
       return;
     }
     if (newPw !== confirmPw) {
@@ -130,17 +152,27 @@ export default function MyPage() {
       return;
     }
 
-    const ok = mockChangePassword(currentPw, newPw);
-    if (!ok) {
-      setPwError("현재 비밀번호가 올바르지 않습니다.");
+    if (!supabase) {
+      setPwError("Supabase 환경 변수가 없어 비밀번호를 변경할 수 없습니다.");
       return;
     }
 
-    setCurrentPw("");
-    setNewPw("");
-    setConfirmPw("");
-    setPwSaved(true);
-    setTimeout(() => setPwSaved(false), 2500);
+    apiFetch("/api/account/change-password", {
+      method: "POST",
+      body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("현재 비밀번호가 올바르지 않습니다.");
+        return res.json();
+      })
+      .then(() => {
+        setCurrentPw("");
+        setNewPw("");
+        setConfirmPw("");
+        setPwSaved(true);
+        setTimeout(() => setPwSaved(false), 2500);
+      })
+      .catch((error) => setPwError(error instanceof Error ? error.message : "비밀번호를 변경하지 못했습니다."));
   };
 
   const handleDeleteAccount = (e: FormEvent<HTMLFormElement>) => {
@@ -149,8 +181,21 @@ export default function MyPage() {
       setDeleteError("탈퇴하려면 현재 이메일을 정확히 입력해 주세요.");
       return;
     }
-    mockDeleteAccount();
-    router.replace("/");
+    if (!supabase) {
+      setDeleteError("Supabase 환경 변수가 없어 회원탈퇴를 처리할 수 없습니다.");
+      return;
+    }
+
+    apiFetch("/api/account", {
+      method: "DELETE",
+      body: JSON.stringify({ confirmEmail: deleteConfirm.trim() }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("회원탈퇴를 처리하지 못했습니다.");
+        return signOut();
+      })
+      .then(() => router.replace("/"))
+      .catch((error) => setDeleteError(error instanceof Error ? error.message : "회원탈퇴를 처리하지 못했습니다."));
   };
 
   if (!session) return null;
@@ -370,7 +415,7 @@ export default function MyPage() {
                         if (pwError) setPwError("");
                         if (pwSaved) setPwSaved(false);
                       }}
-                      placeholder="새 비밀번호 (4자 이상)"
+                      placeholder="새 비밀번호 (8자 이상)"
                       className="min-h-12 w-full bg-transparent text-sm text-text outline-none placeholder:text-muted-text/60"
                     />
                     <button
@@ -453,7 +498,7 @@ export default function MyPage() {
                   <div className="min-w-0 flex-1">
                     <h2 className="text-base font-extrabold text-text">회원탈퇴</h2>
                     <p className="mt-1 text-sm leading-relaxed text-muted-text">
-                      탈퇴하면 현재 브라우저의 로그인 세션과 목업 계정 설정이 삭제됩니다.
+                      탈퇴하면 계정과 풀이 기록이 삭제되며 로그인 세션이 종료됩니다.
                     </p>
                   </div>
                 </div>

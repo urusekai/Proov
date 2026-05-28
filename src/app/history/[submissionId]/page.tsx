@@ -1,6 +1,6 @@
 "use client";
 
-import React, { use, useEffect, useSyncExternalStore } from "react";
+import React, { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -15,18 +15,10 @@ import {
 } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
-import { mockSubmissions } from "@/data/mock-history";
-import { curatedProblemSets, QuestionTag } from "@/data/curated-problem-sets";
-import { getMockSession, subscribeMockAuth } from "@/lib/mock-auth";
+import type { QuestionTag, SubmissionResult } from "@/lib/types";
+import { apiFetch, getSession } from "@/lib/supabase";
 
 type AuthStatus = "checking" | "authenticated" | "unauthenticated";
-
-function getAuthSnapshot(): AuthStatus {
-  return getMockSession() ? "authenticated" : "unauthenticated";
-}
-function getServerAuthSnapshot(): AuthStatus {
-  return "checking";
-}
 
 const TAG_LABELS: Record<QuestionTag, string> = {
   CODE_BEHAVIOR: "Code Behavior",
@@ -54,7 +46,7 @@ const DIFFICULTY_STYLE: Record<string, string> = {
 };
 
 function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
+  const d = new Date(dateStr.includes("T") ? dateStr : dateStr + "T00:00:00");
   return `${d.getMonth() + 1}월 ${d.getDate()}일`;
 }
 
@@ -77,23 +69,39 @@ export default function HistoryDetailPage({
 }) {
   const router = useRouter();
   const { submissionId } = use(params);
-
-  const authStatus = useSyncExternalStore(subscribeMockAuth, getAuthSnapshot, getServerAuthSnapshot);
+  const [authStatus, setAuthStatus] = useState<AuthStatus>("checking");
+  const [result, setResult] = useState<SubmissionResult | null>(null);
 
   useEffect(() => {
-    if (authStatus === "unauthenticated") {
-      router.replace(`/auth/login?redirect=/history/${submissionId}`);
-    }
-  }, [authStatus, router, submissionId]);
-
-  const submission = mockSubmissions.find((s) => s.id === submissionId);
-  const problemSet = submission
-    ? curatedProblemSets.find((s) => s.id === submission.problemSetId)
-    : undefined;
+    let cancelled = false;
+    getSession().then((session) => {
+      if (cancelled) return;
+      if (!session) {
+        setAuthStatus("unauthenticated");
+        router.replace(`/auth/login?redirect=/history/${submissionId}`);
+        return;
+      }
+      setAuthStatus("authenticated");
+      apiFetch(`/api/submissions/${submissionId}`)
+        .then((res) => {
+          if (!res.ok) throw new Error("fetch failed");
+          return res.json();
+        })
+        .then((data: { result: SubmissionResult }) => {
+          if (!cancelled) setResult(data.result);
+        })
+        .catch(() => {
+          if (!cancelled) setResult(null);
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [router, submissionId]);
 
   if (authStatus === "checking" || authStatus === "unauthenticated") return null;
 
-  if (!submission || !problemSet) {
+  if (!result) {
     return (
       <div className="min-h-screen bg-background flex flex-col font-sans">
         <SiteHeader activePath="/history" />
@@ -111,9 +119,12 @@ export default function HistoryDetailPage({
     );
   }
 
-  // questionId → selected 답변 맵
+  const problemSet = result.problemSet;
   const answerMap = Object.fromEntries(
-    submission.answers.map((a) => [a.questionId, a.selected])
+    result.answers.map((a) => [a.questionId, a.selectedAnswer])
+  );
+  const correctAnswerMap = Object.fromEntries(
+    result.answers.map((a) => [a.questionId, a.correctAnswer])
   );
 
   const techTags = [
@@ -139,12 +150,12 @@ export default function HistoryDetailPage({
             <div className="flex flex-wrap items-center gap-2 mb-10">
               <span
                 className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                  DIFFICULTY_STYLE[submission.difficulty]
+                  DIFFICULTY_STYLE[problemSet.difficulty]
                 }`}
               >
-                {DIFFICULTY_LABEL[submission.difficulty]}
+                {DIFFICULTY_LABEL[problemSet.difficulty]}
               </span>
-              <span className="text-xs text-muted-text">{formatDate(submission.submittedAt)}</span>
+              <span className="text-xs text-muted-text">{formatDate(result.submittedAt)}</span>
             </div>
 
             {/* Two-col: left = score + tags, right = PR */}
@@ -154,13 +165,13 @@ export default function HistoryDetailPage({
                 {/* Score */}
                 <div>
                   <div className="flex items-baseline gap-3">
-                    <span className={`text-7xl font-extrabold tabular-nums ${scoreColor(submission.score)}`}>
-                      {submission.score}
+                    <span className={`text-7xl font-extrabold tabular-nums ${scoreColor(result.score)}`}>
+                      {result.score}
                     </span>
                     <span className="text-2xl font-bold text-muted-text/60">/ 100</span>
                   </div>
-                  <p className={`text-lg font-bold mt-2 ${scoreColor(submission.score)}`}>
-                    {scoreLabel(submission.score)}
+                  <p className={`text-lg font-bold mt-2 ${scoreColor(result.score)}`}>
+                    {scoreLabel(result.score)}
                   </p>
                 </div>
 
@@ -169,7 +180,7 @@ export default function HistoryDetailPage({
                   <div>
                     <p className="text-xs font-semibold text-muted-text mb-2">문제 유형</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {problemSet.primaryTags.map((tag) => (
+                      {problemSet.questionTypeTags.map((tag) => (
                         <span
                           key={tag}
                           className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-accent/10 text-accent"
@@ -207,11 +218,11 @@ export default function HistoryDetailPage({
                     </p>
                   </div>
                   <p className="text-sm font-semibold text-text leading-relaxed">
-                    {problemSet.sourcePrTitle}
+                    {problemSet.prTitle}
                   </p>
                 </div>
                 <a
-                  href={problemSet.sourceUrl}
+                  href={problemSet.prUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex h-10 items-center gap-2 rounded-lg border border-lavender-tint px-4 text-sm font-semibold text-accent transition-all hover:border-accent hover:bg-lavender-tint/20 active:scale-[0.98]"
@@ -226,7 +237,8 @@ export default function HistoryDetailPage({
           <div className="space-y-4">
             {problemSet.questions.map((q, i) => {
               const selected = answerMap[q.id];
-              const isCorrect = selected === q.answer;
+              const correctAnswer = correctAnswerMap[q.id];
+              const isCorrect = selected === correctAnswer;
 
               return (
                 <div
@@ -266,7 +278,7 @@ export default function HistoryDetailPage({
                       {/* Options */}
                       <div className="space-y-2">
                         {q.options.map((opt) => {
-                          const isAnswer = opt.id === q.answer;
+                          const isAnswer = opt.id === correctAnswer;
                           const isUserSelect = opt.id === selected;
                           let cls = "border-lavender-tint text-muted-text bg-background";
                           if (isAnswer) cls = "border-emerald-300 bg-emerald-50 text-emerald-800";
@@ -338,7 +350,7 @@ export default function HistoryDetailPage({
               목록으로
             </Link>
             <Link
-              href={`/problem-sets/${submission.problemSetId}`}
+              href={`/problem-sets/${problemSet.id}`}
               className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-accent text-white rounded-lg shadow-sm hover:bg-primary hover:shadow-default transition-all active:scale-[0.98]"
             >
               <RotateCcw className="w-4 h-4" />
