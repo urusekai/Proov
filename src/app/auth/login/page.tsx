@@ -2,21 +2,42 @@
 
 import Link from "next/link";
 import { Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { AuthShell } from "../_components/auth-shell";
+import { getMockSession, mockSignIn } from "@/lib/mock-auth";
 
-export default function LoginPage() {
+function LoginForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (getMockSession()) {
+      const redirect = searchParams.get("redirect") ?? "/";
+      router.replace(redirect);
+    }
+  }, [router, searchParams]);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const form = event.currentTarget;
+    const email = (form.elements.namedItem("email") as HTMLInputElement).value;
+    const password = (form.elements.namedItem("password") as HTMLInputElement).value;
+
+    const session = mockSignIn(email, password);
+    if (session) {
+      const redirect = searchParams.get("redirect") ?? "/problem-sets/new";
+      router.push(redirect);
+    } else {
+      setError("이메일 또는 비밀번호가 올바르지 않습니다.");
+    }
   };
 
   return (
-    <AuthShell
-      title="풀이 기록을 이어서 확인하세요."
-      description="로그인하면 PR 문제 풀이 결과를 저장하고, 이전 기록에서 다시 확인할 수 있습니다."
-    >
+    <AuthShell>
       <div className="mb-7">
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">Login</p>
         <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-text">로그인</h2>
@@ -80,6 +101,12 @@ export default function LoginPage() {
           로그인 상태 유지
         </label>
 
+        {error && (
+          <p className="rounded-lg bg-rose-50 px-4 py-3 text-sm font-medium text-rose-600 border border-rose-100">
+            {error}
+          </p>
+        )}
+
         <button
           type="submit"
           className="w-full rounded-lg bg-accent px-5 py-3.5 text-sm font-extrabold text-white shadow-sm transition-all hover:bg-primary hover:shadow-default active:scale-[0.98]"
@@ -95,5 +122,13 @@ export default function LoginPage() {
         </Link>
       </p>
     </AuthShell>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

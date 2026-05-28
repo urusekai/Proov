@@ -69,8 +69,8 @@ function DiffViewer({ patch }: { patch: string }) {
     <div className="scrollbar-thin font-mono text-xs overflow-auto bg-white text-slate-700 leading-relaxed h-full">
       {lines.map((line, idx) => {
         let cls = "bg-white text-slate-700";
-        if (line.startsWith("+")) cls = "bg-[#ecfdf5] text-[#059669]";
-        else if (line.startsWith("-")) cls = "bg-[#fef2f2] text-[#dc2626]";
+        if (line.startsWith("+")) cls = "bg-[#ecfdf5] text-[#10b981]";
+        else if (line.startsWith("-")) cls = "bg-[#fef2f2] text-[#ef4444]";
         else if (line.startsWith("@@"))
           cls = "bg-lavender-tint/30 text-primary font-semibold";
 

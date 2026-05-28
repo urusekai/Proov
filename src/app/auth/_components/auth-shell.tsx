@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpenCheck, ChartNoAxesColumnIncreasing, GitPullRequest } from "lucide-react";
 
 const ProovLogo = ({ className = "w-6 h-6" }: { className?: string }) => (
   <svg
@@ -19,12 +18,10 @@ const ProovLogo = ({ className = "w-6 h-6" }: { className?: string }) => (
 );
 
 type AuthShellProps = {
-  title: string;
-  description: string;
   children: React.ReactNode;
 };
 
-export function AuthShell({ title, description, children }: AuthShellProps) {
+export function AuthShell({ children }: AuthShellProps) {
   return (
     <div className="min-h-screen bg-background font-sans text-text selection:bg-accent/20">
       <header className="border-b border-lavender-tint bg-background/80 backdrop-blur-md">
@@ -43,19 +40,19 @@ export function AuthShell({ title, description, children }: AuthShellProps) {
                 href="/problem-sets/new"
                 className="relative py-1 transition-colors after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:scale-x-0 after:bg-accent after:transition-transform hover:text-accent hover:after:scale-x-100"
               >
-                새 풀이
+                문제 만들기
               </Link>
               <Link
                 href="/problem-sets"
                 className="relative py-1 transition-colors after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:scale-x-0 after:bg-accent after:transition-transform hover:text-accent hover:after:scale-x-100"
               >
-                문제 세트
+                문제 목록
               </Link>
               <Link
                 href="/history"
                 className="relative py-1 transition-colors after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:scale-x-0 after:bg-accent after:transition-transform hover:text-accent hover:after:scale-x-100"
               >
-                풀이 기록
+                내 기록
               </Link>
             </nav>
           </div>
@@ -69,59 +66,10 @@ export function AuthShell({ title, description, children }: AuthShellProps) {
         </div>
       </header>
 
-      <main className="grid min-h-[calc(100vh-4rem)] grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(420px,520px)]">
-        <section className="flex items-center px-4 py-12 md:px-8 lg:px-10">
-          <div className="mx-auto w-full max-w-[720px]">
-            <h1 className="max-w-2xl text-3xl font-extrabold leading-tight tracking-tight text-text md:text-5xl md:leading-[1.15]">
-              {title}
-            </h1>
-            <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-text">
-              {description}
-            </p>
-
-            <div className="mt-10 grid gap-4">
-              <div className="flex gap-5 rounded-xl border border-lavender-tint bg-white p-6 shadow-default transition-shadow hover:shadow-highlight">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
-                  <GitPullRequest className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-base font-bold text-text">공개 PR 분석</p>
-                  <p className="mt-1 text-sm leading-relaxed text-muted-text">
-                    궁금한 PR 링크를 넣고, 변경된 코드에서 무엇을 이해해야 하는지 바로 확인합니다.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-5 rounded-xl border border-lavender-tint bg-white p-6 shadow-default transition-shadow hover:shadow-highlight">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
-                  <BookOpenCheck className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-base font-bold text-text">실제 코드 기반 학습</p>
-                  <p className="mt-1 text-sm leading-relaxed text-muted-text">
-                    알고리즘 문제가 아니라 실제 변경 흐름을 읽으며 코드 리뷰에 가까운 감각을 기릅니다.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-5 rounded-xl border border-lavender-tint bg-white p-6 shadow-default transition-shadow hover:shadow-highlight">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
-                  <ChartNoAxesColumnIncreasing className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-base font-bold text-text">학습 기록 관리</p>
-                  <p className="mt-1 text-sm leading-relaxed text-muted-text">
-                    이전 풀이와 점수를 다시 보며 어떤 유형의 코드 이해가 약한지 추적합니다.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="flex items-center border-t border-lavender-tint bg-white px-4 py-12 shadow-default md:px-8 lg:border-l lg:border-t-0">
-          <div className="mx-auto w-full max-w-[420px]">{children}</div>
-        </section>
+      <main className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-12">
+        <div className="w-full max-w-[420px] rounded-xl border border-lavender-tint bg-white p-8 shadow-default">
+          {children}
+        </div>
       </main>
     </div>
   );

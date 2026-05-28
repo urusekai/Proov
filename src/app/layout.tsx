@@ -8,8 +8,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Proov | AI 기반 코드 독해력 평가 및 학습 플랫폼",
-  description: "실제 GitHub PR 코드를 바탕으로 AI가 출제하는 맞춤형 문제를 풀며, 실무 코드 독해력과 아키텍처 이해도를 증명하세요.",
+  title: "Proov | AI 기반 코드 이해력 평가 및 학습 플랫폼",
+  description: "실제 GitHub PR 코드를 바탕으로 AI가 출제하는 맞춤형 문제를 풀며, 실무 코드 이해력과 아키텍처 이해도를 증명하세요.",
 };
 
 export default function RootLayout({

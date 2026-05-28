@@ -2,21 +2,27 @@
 
 import Link from "next/link";
 import { Eye, EyeOff, LockKeyhole, Mail, User } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AuthShell } from "../_components/auth-shell";
+import { getMockSession } from "@/lib/mock-auth";
 
 export default function SignupPage() {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    if (getMockSession()) {
+      router.replace("/");
+    }
+  }, [router]);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
   };
 
   return (
-    <AuthShell
-      title="내 코드 독해 기록을 쌓아보세요."
-      description="회원가입 후 PR 문제 결과를 저장하고, 반복해서 약한 유형을 확인할 수 있습니다."
-    >
+    <AuthShell>
       <div className="mb-7">
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">Sign up</p>
         <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-text">회원가입</h2>

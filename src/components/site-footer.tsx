@@ -18,35 +18,17 @@ const ProovLogo = ({ className = "w-6 h-6" }: { className?: string }) => (
 export function SiteFooter() {
   return (
     <footer className="bg-background border-t border-lavender-tint/50 py-12 text-sm text-muted-text">
-      <div className="max-w-[1248px] mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
-        <div className="flex flex-col items-center md:items-start gap-3">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-primary font-bold text-[20px] leading-none hover:opacity-90 transition-opacity"
-          >
-            <ProovLogo className="w-[18px] h-[18px] text-accent" />
-            <span>Proov</span>
-          </Link>
-          <p className="text-xs text-muted-text text-center md:text-left">
-            &copy; 2026 Proov. All rights reserved. Code Comprehension for
-            Modern Teams.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs font-medium">
-          <Link href="/problem-sets/new" className="hover:text-accent transition-colors">
-            새 풀이
-          </Link>
-          <Link href="/problem-sets" className="hover:text-accent transition-colors">
-            문제 세트
-          </Link>
-          <Link href="/history" className="hover:text-accent transition-colors">
-            풀이 기록
-          </Link>
-          <Link href="/auth/login" className="hover:text-accent transition-colors">
-            로그인
-          </Link>
-        </div>
+      <div className="max-w-[1248px] mx-auto px-6 flex flex-col items-center gap-3">
+        <Link
+          href="/"
+          className="flex items-center gap-2 text-primary font-bold text-[20px] leading-none hover:opacity-90 transition-opacity"
+        >
+          <ProovLogo className="w-[18px] h-[18px] text-accent" />
+          <span>Proov</span>
+        </Link>
+        <p className="text-xs text-muted-text text-center">
+          &copy; 2026 Proov. All rights reserved.
+        </p>
       </div>
     </footer>
   );

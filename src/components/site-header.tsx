@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { getMockSession, mockSignOut, subscribeMockAuth, type MockSession } from "@/lib/mock-auth";
 
 const ProovLogo = ({ className = "w-6 h-6" }: { className?: string }) => (
   <svg
@@ -19,19 +21,34 @@ const ProovLogo = ({ className = "w-6 h-6" }: { className?: string }) => (
 );
 
 const navLinks = [
-  { href: "/problem-sets/new", label: "새 풀이" },
-  { href: "/problem-sets", label: "문제 세트" },
-  { href: "/history", label: "풀이 기록" },
+  { href: "/problem-sets/new", label: "문제 만들기" },
+  { href: "/problem-sets", label: "문제 목록" },
+  { href: "/history", label: "내 기록" },
 ];
 
+function getServerSnapshot(): MockSession | null {
+  return null;
+}
+
 export function SiteHeader({ activePath }: { activePath?: string }) {
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const session = useSyncExternalStore(subscribeMockAuth, getMockSession, getServerSnapshot);
+
   const isLinkActive = (href: string) =>
     activePath === href ||
-    (href !== "/problem-sets/new" && activePath?.startsWith(`${href}/`));
+    (href !== "/problem-sets/new" &&
+      activePath !== "/problem-sets/new" &&
+      activePath?.startsWith(`${href}/`));
+
+  const handleSignOut = () => {
+    mockSignOut();
+    router.push("/");
+  };
 
   return (
-    <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-lavender-tint">
+    <header className="sticky top-0 z-50 bg-background">
       <div className="w-full max-w-none mx-auto px-4 md:px-6 xl:px-8 2xl:px-10 h-16 flex items-center justify-between">
         <div className="flex items-center gap-8">
           <Link
@@ -60,18 +77,47 @@ export function SiteHeader({ activePath }: { activePath?: string }) {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
-          <Link
-            href="/auth/login"
-            className="text-sm font-medium text-muted-text hover:text-text px-4 py-2 transition-colors"
-          >
-            로그인
-          </Link>
-          <Link
-            href="/auth/signup"
-            className="text-sm font-medium bg-accent text-white px-5 py-2.5 rounded-lg hover:bg-primary transition-all hover:shadow-default active:scale-[0.98]"
-          >
-            회원가입
-          </Link>
+          {session ? (
+            <>
+              <Link
+                href="/mypage"
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+              >
+                {session.user.avatar_url ? (
+                  <img src={session.user.avatar_url} alt={session.user.nickname} className="w-7 h-7 rounded-full object-cover" />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-accent/15 text-accent flex items-center justify-center text-xs font-bold shrink-0">
+                    {session.user.nickname.charAt(0)}
+                  </div>
+                )}
+                <span className="text-sm text-muted-text font-medium truncate max-w-[120px]">
+                  {session.user.nickname}
+                </span>
+              </Link>
+              <button
+                onClick={handleSignOut}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-text hover:text-text px-4 py-2 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                로그아웃
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/auth/login"
+                className="text-sm font-medium text-muted-text hover:text-text px-4 py-2 transition-colors"
+              >
+                로그인
+              </Link>
+              <Link
+                href="/auth/signup"
+                className="text-sm font-medium bg-accent text-white px-5 py-2.5 rounded-lg hover:bg-primary transition-all hover:shadow-default active:scale-[0.98]"
+              >
+                회원가입
+              </Link>
+            </>
+          )}
         </div>
 
         <button
@@ -88,7 +134,7 @@ export function SiteHeader({ activePath }: { activePath?: string }) {
       </div>
 
       {mobileMenuOpen && (
-        <div className="md:hidden bg-background border-b border-lavender-tint px-4 py-4">
+        <div className="md:hidden border-t border-lavender-tint/60 bg-background px-4 py-4">
           <nav className="flex flex-col gap-4 text-sm font-medium text-muted-text mb-6">
             {navLinks.map((link) => (
               <Link
@@ -103,20 +149,48 @@ export function SiteHeader({ activePath }: { activePath?: string }) {
               </Link>
             ))}
           </nav>
-          <div className="flex flex-col gap-2">
-            <Link
-              href="/auth/login"
-              className="text-sm font-medium text-muted-text hover:text-text py-2.5 border border-lavender-tint rounded-lg transition-colors text-center"
-            >
-              로그인
-            </Link>
-            <Link
-              href="/auth/signup"
-              className="text-sm font-medium bg-accent text-white py-2.5 rounded-lg hover:bg-primary transition-all text-center"
-            >
-              회원가입
-            </Link>
-          </div>
+          {session ? (
+            <div className="flex flex-col gap-2">
+              <Link
+                href="/mypage"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 px-1 pb-3 border-b border-lavender-tint/60 hover:opacity-80 transition-opacity"
+              >
+                {session.user.avatar_url ? (
+                  <img src={session.user.avatar_url} alt={session.user.nickname} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-accent/15 text-accent flex items-center justify-center text-xs font-bold shrink-0">
+                    {session.user.nickname.charAt(0)}
+                  </div>
+                )}
+                <span className="text-sm text-muted-text font-medium">{session.user.nickname}</span>
+              </Link>
+              <button
+                onClick={handleSignOut}
+                className="inline-flex items-center justify-center gap-2 text-sm font-medium text-muted-text hover:text-text py-2.5 border border-lavender-tint rounded-lg transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                로그아웃
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <Link
+                href="/auth/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-sm font-medium text-muted-text hover:text-text py-2.5 border border-lavender-tint rounded-lg transition-colors text-center"
+              >
+                로그인
+              </Link>
+              <Link
+                href="/auth/signup"
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-sm font-medium bg-accent text-white py-2.5 rounded-lg hover:bg-primary transition-all text-center"
+              >
+                회원가입
+              </Link>
+            </div>
+          )}
         </div>
       )}
     </header>
