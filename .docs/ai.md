@@ -27,6 +27,14 @@
 - 단순 파일명 암기 문제 금지
 - 해설은 한국어 2문장 이내
 - relatedFiles는 diff에 있는 파일 1~3개
+- 문제 세트 목록 노출을 위한 displayTitle, summary, difficulty, estimatedMinutes를 함께 생성
+- 문제 세트 분류를 위한 languageTags, frameworkTags, libraryTags, topicTags를 함께 생성
+- 세트 태그는 PR 전체 맥락 기준으로 부여하고, 문항 태그는 각 문제의 코드 이해 유형 기준으로 부여
+- displayTitle은 PR 제목을 그대로 복사하지 않고, 사용자가 학습 주제를 바로 이해할 수 있는 한국어 제목으로 작성
+- displayTitle과 summary는 정답 조건이나 변경 결론을 직접 드러내지 않고, 읽게 될 코드 영역과 학습 주제만 넓게 설명
+- summary는 1문장으로 작성하고, 3문항이 다루는 코드 영역과 이해 포인트를 넓게 요약
+- difficulty는 BEGINNER, INTERMEDIATE, ADVANCED 중 하나
+- estimatedMinutes는 3문항 풀이 예상 시간이며 3~10 사이 정수
 
 ## Question Tag
 
@@ -48,6 +56,11 @@
 Create exactly 3 Korean multiple-choice questions from the GitHub PR diff.
 Use only facts from the diff.
 Generate the 3 best questions first, then assign the single best matching tag to each question.
+Also create displayTitle, summary, difficulty, and estimatedMinutes for listing this problem set.
+Also create languageTags, frameworkTags, libraryTags, and topicTags for categorizing the whole problem set.
+Assign question tags per question. Do not use language/framework/library tags as question tags.
+displayTitle must describe the learning topic, not just copy the PR title.
+displayTitle and summary must not reveal the exact fix, answer condition, PR title, PR URL, or pull number.
 Do not force tag diversity. Multiple questions may use the same tag.
 Prioritize question quality and diff-grounded reasoning over tag balance.
 Each question has 4 options A-D and exactly one answer.
@@ -72,6 +85,14 @@ export type QuestionTag =
   | "CONFIG_CHANGE";
 
 export type GeneratedProblemSet = {
+  displayTitle: string;
+  summary: string;
+  difficulty: "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
+  estimatedMinutes: number;
+  languageTags: string[];
+  frameworkTags: string[];
+  libraryTags: string[];
+  topicTags: string[];
   questions: {
     type: "MULTIPLE_CHOICE";
     tag: QuestionTag;
@@ -86,6 +107,13 @@ export type GeneratedProblemSet = {
 
 ## Zod 검증
 - questions 길이 3
+- displayTitle 비어 있으면 안 됨
+- summary 비어 있으면 안 됨
+- difficulty는 BEGINNER/INTERMEDIATE/ADVANCED 중 하나
+- estimatedMinutes는 3~10 사이 정수
+- languageTags/frameworkTags/libraryTags/topicTags는 문자열 배열
+- languageTags는 최소 1개
+- 존재하지 않는 프레임워크/라이브러리는 추측해서 넣지 않음
 - options 길이 4
 - answer는 A/B/C/D
 - tag는 enum 중 하나

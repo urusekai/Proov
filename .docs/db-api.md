@@ -12,6 +12,16 @@
 ### problem_sets
 - id uuid
 - user_id uuid, nullable for guest practice
+- source_type text, `CURATED` or `GENERATED`
+- visibility text, `PUBLIC` or `PRIVATE`
+- display_title text
+- summary text
+- difficulty text, `BEGINNER` or `INTERMEDIATE` or `ADVANCED`
+- estimated_minutes int
+- language_tags text[]
+- framework_tags text[]
+- library_tags text[]
+- topic_tags text[]
 - pr_url text
 - pr_title text
 - repository_owner text
@@ -27,7 +37,7 @@
 - id uuid
 - problem_set_id uuid
 - type text
-- tag text
+- tag text, question type tag
 - question text
 - options jsonb
 - answer text
@@ -75,8 +85,30 @@ Response:
 { "error": "INSUFFICIENT_DIFF", "message": "이 PR은 변경 내용이 너무 적어 3개의 문제를 만들기 어렵습니다." }
 ```
 
+### GET /api/problem-sets
+사이트에서 제공하는 공개 문제 세트 목록. `visibility = PUBLIC`인 세트만 반환한다. 풀이 전 목록 응답에는 PR 제목, PR URL, pull number를 포함하지 않는다.
+```json
+{
+  "items": [
+    {
+      "id": "uuid",
+      "displayTitle": "HTTP 클라이언트 실패 응답 흐름 읽기",
+      "summary": "응답 처리와 비동기 제어 흐름을 읽고 코드 변경의 영향을 파악하는 문제입니다.",
+      "difficulty": "INTERMEDIATE",
+      "estimatedMinutes": 6,
+      "languageTags": ["TypeScript"],
+      "frameworkTags": [],
+      "libraryTags": ["Ky"],
+      "topicTags": ["HTTP Client", "Response Parsing"],
+      "questionTypeTags": ["Error Handling", "Data Flow", "Side Effect"],
+      "repository": "owner/repo"
+    }
+  ]
+}
+```
+
 ### GET /api/problem-sets/:id
-문제 세트 조회. 풀이 전 화면에서는 정답과 해설을 응답하지 않는다.
+문제 세트 조회. 풀이 전 화면에서는 정답, 해설, PR 제목, PR URL, pull number를 응답하지 않는다.
 
 ### POST /api/problem-sets/:id/submit
 답안 제출/채점. 로그인 사용자는 submission을 저장하고, 비로그인 사용자는 저장하지 않은 결과 preview만 반환한다.
@@ -96,7 +128,16 @@ Response:
 
 ## Security
 - 비로그인 사용자는 문제 생성, 문제 풀이, 결과 확인까지 가능
+- 비로그인 사용자는 공개 문제 세트 목록 조회와 풀이 가능
 - 풀이 기록 저장과 기록 조회는 로그인 사용자만 가능
+- `PUBLIC` 문제 세트는 누구나 조회할 수 있고, `PRIVATE` 문제 세트는 생성자 또는 허용된 서버 흐름에서만 조회할 수 있음
 - submissions, submission_answers는 user_id로 소유권 확인
 - Supabase RLS 적용
 - service role key, OpenAI key, GitHub token은 서버 전용
+
+## Tag Modeling
+- MVP 초기 구현은 `problem_sets`의 세트 태그 배열과 `questions.tag` 문항 태그를 사용한다.
+- 세트 태그: `language_tags`, `framework_tags`, `library_tags`, `topic_tags`
+- 문항 태그: `questions.tag`
+- 문제 세트 목록의 카테고리 필터는 세트 태그와 포함 문항 태그를 조합해서 ProblemSet 단위로 반환한다.
+- 태그 관리, 동의어, 검색, 추천이 복잡해지면 `tags`, `problem_set_tags`, `question_tags` 테이블로 정규화한다.
