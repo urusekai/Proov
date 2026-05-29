@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { curatedProblemSets, getCuratedCreatedAt } from "@/data/curated-problem-sets";
 import { curatedProblemSetDbId, curatedQuestionDbId } from "@/lib/server/stable-id";
+import type { QuestionDifficulty } from "@/lib/types";
 
 const SCHEMA_PATH = "supabase/schema.sql";
 const SEED_START = "-- Curated public problem sets";
@@ -24,7 +25,7 @@ function buildSeedSql(): string {
   lines.push("-- Curated public problem sets (generated from src/data/curated-problem-sets.ts)");
   lines.push("insert into public.problem_sets (");
   lines.push(
-    "  id, user_id, source_type, visibility, display_title, summary, difficulty, estimated_minutes,"
+    "  id, user_id, source_type, visibility, display_title, difficulty, estimated_minutes,"
   );
   lines.push("  language_tags, framework_tags, library_tags, topic_tags,");
   lines.push(
@@ -43,7 +44,6 @@ function buildSeedSql(): string {
       sqlString("CURATED"),
       sqlString("PUBLIC"),
       sqlString(set.displayTitle),
-      sqlString(set.summary),
       sqlString(set.difficulty),
       "8",
       sqlTextArray(set.languageTags),
@@ -63,7 +63,6 @@ function buildSeedSql(): string {
   lines.push(...setRows);
   lines.push("on conflict (id) do update set");
   lines.push("  display_title = excluded.display_title,");
-  lines.push("  summary = excluded.summary,");
   lines.push("  difficulty = excluded.difficulty,");
   lines.push("  language_tags = excluded.language_tags,");
   lines.push("  framework_tags = excluded.framework_tags,");
@@ -79,7 +78,7 @@ function buildSeedSql(): string {
   lines.push("");
   lines.push("insert into public.questions (");
   lines.push(
-    "  id, problem_set_id, type, tag, question, options, answer, explanation, related_files, order_index"
+    "  id, problem_set_id, type, tag, difficulty, title, question, options, answer, explanation, related_files, order_index"
   );
   lines.push(") values");
 
@@ -93,6 +92,8 @@ function buildSeedSql(): string {
           sqlString(problemSetId),
           sqlString("MULTIPLE_CHOICE"),
           sqlString(question.tag),
+          sqlString((question as { difficulty?: QuestionDifficulty }).difficulty ?? set.difficulty),
+          sqlString(question.title),
           sqlString(question.question),
           sqlJson(question.options),
           sqlString(question.answer),
@@ -107,6 +108,8 @@ function buildSeedSql(): string {
   lines.push(questionRows.join(",\n"));
   lines.push("on conflict (id) do update set");
   lines.push("  question = excluded.question,");
+  lines.push("  difficulty = excluded.difficulty,");
+  lines.push("  title = excluded.title,");
   lines.push("  options = excluded.options,");
   lines.push("  answer = excluded.answer,");
   lines.push("  explanation = excluded.explanation,");

@@ -17,6 +17,7 @@
 - display_title text
 - summary text
 - difficulty text, `BEGINNER` or `INTERMEDIATE` or `ADVANCED`
+- top-level difficulty는 PR에서 생성된 3문항의 대표 난이도이며, 목록/풀이 기준은 `questions.difficulty`
 - estimated_minutes int
 - language_tags text[]
 - framework_tags text[]
@@ -38,6 +39,8 @@
 - problem_set_id uuid
 - type text
 - tag text, question type tag
+- difficulty text, `BEGINNER` or `INTERMEDIATE` or `ADVANCED`
+- title text, 목록/기록용 짧은 문항 제목
 - question text
 - options jsonb
 - answer text
@@ -71,6 +74,21 @@ PR URL 검증.
 { "prUrl": "https://github.com/owner/repo/pull/123" }
 ```
 
+### POST /api/pr/preview
+로딩 화면용 PR 메타데이터 조회. GitHub PR API 1회만 호출하며 diff/files는 가져오지 않는다. 로그인 사용자만 호출할 수 있다.
+```json
+{ "prUrl": "https://github.com/owner/repo/pull/123" }
+```
+Response:
+```json
+{
+  "repository": "owner/repo",
+  "pullNumber": 123,
+  "title": "PR 제목",
+  "prUrl": "https://github.com/owner/repo/pull/123"
+}
+```
+
 ### POST /api/problem-sets/generate
 PR 분석 후 문제 생성. 로그인 사용자만 호출할 수 있다.
 ```json
@@ -86,24 +104,28 @@ Response:
 ```
 
 ### GET /api/problem-sets
-사이트에서 제공하는 공개 문제 세트 목록. `visibility = PUBLIC`인 세트만 반환한다.
+사이트에서 제공하는 공개 문제 목록. `visibility = PUBLIC`인 ProblemSet에 속한 Question을 문항 단위로 반환한다.
 ```json
 {
   "items": [
     {
-      "id": "uuid",
+      "id": "question-uuid",
+      "problemSetId": "problem-set-uuid",
       "displayTitle": "HTTP 클라이언트 실패 응답 흐름 읽기",
       "summary": "응답 처리와 비동기 제어 흐름을 읽고 코드 변경의 영향을 파악하는 문제입니다.",
+      "title": "parseJson 콜백 시그니처 변경",
+      "question": "변경된 parseJson 콜백은 어떤 인자를 추가로 받습니까?",
+      "tag": "API_CONTRACT",
       "difficulty": "INTERMEDIATE",
       "languageTags": ["TypeScript"],
       "frameworkTags": [],
       "libraryTags": ["Ky"],
       "topicTags": ["HTTP Client", "Response Parsing"],
-      "questionTypeTags": ["Error Handling", "Data Flow", "Side Effect"],
       "repository": "owner/repo",
       "prTitle": "Improve response parsing context",
       "prUrl": "https://github.com/owner/repo/pull/123",
       "pullNumber": 123,
+      "relatedFiles": ["src/index.ts"],
       "createdAt": "2026-05-28T00:00:00.000Z"
     }
   ]
@@ -113,7 +135,7 @@ Response:
 목록 API는 `created_at` 내림차순으로 조회한다. 클라이언트 최신순 정렬은 `createdAt` 기준이다.
 
 ### GET /api/problem-sets/:id
-문제 세트 조회. 풀이 전 화면에서는 정답과 해설을 응답하지 않는다. PR 메타데이터와 diff 표시용 정보는 응답할 수 있다.
+PR 묶음과 그 안의 문항을 조회한다. 풀이 전 화면에서는 정답과 해설을 응답하지 않는다. 클라이언트는 `?question=...`으로 특정 문항을 선택해 단일 문항 풀이 화면을 구성한다. PR 메타데이터와 diff 표시용 정보는 응답할 수 있다.
 
 ### PATCH /api/profile
 내 프로필 정보를 수정한다. 로그인 필수.
@@ -134,7 +156,8 @@ Response:
 ```
 
 ### POST /api/problem-sets/:id/submit
-답안 제출/채점. 로그인 사용자는 submission을 저장하고, 비로그인 사용자는 저장하지 않은 결과 preview만 반환한다.
+답안 제출/채점. 기본 흐름은 단일 문항 제출이며, 로그인 사용자는 submission을 저장하고 비로그인 사용자는 저장하지 않은 결과 preview만 반환한다.
+단일 문항 제출 시, 동일 사용자·동일 `question_id`에 대한 기존 submission이 있으면 insert 대신 해당 row를 갱신한다.
 ```json
 {
   "answers": [
@@ -149,9 +172,9 @@ Response:
   "result": {
     "id": "uuid-or-null",
     "saved": true,
-    "score": 67,
-    "correctCount": 2,
-    "totalCount": 3,
+    "score": 100,
+    "correctCount": 1,
+    "totalCount": 1,
     "submittedAt": "2026-05-28T00:00:00.000Z",
     "problemSet": {},
     "answers": []
@@ -160,15 +183,15 @@ Response:
 ```
 
 ### GET /api/submissions
-내 풀이 기록 목록.
+내 풀이 기록 목록. 문항(`question_id`)별 최신 submission 1건만 반환한다.
 
 ### GET /api/submissions/:id
 내 풀이 기록 상세.
 
 ## Security
-- 비로그인 사용자는 공개 문제 세트 풀이와 결과 확인까지 가능
+- 비로그인 사용자는 공개 문제 풀이와 결과 확인까지 가능
 - PR URL 기반 문제 생성은 로그인 사용자만 가능
-- 비로그인 사용자는 공개 문제 세트 목록 조회와 풀이 가능
+- 비로그인 사용자는 공개 문제 목록 조회와 풀이 가능
 - 프로필 수정, 비밀번호 변경, 회원탈퇴는 로그인 사용자만 가능
 - 풀이 기록 저장과 기록 조회는 로그인 사용자만 가능
 - `PUBLIC` 문제 세트는 누구나 조회할 수 있고, `PRIVATE` 문제 세트는 생성자 또는 허용된 서버 흐름에서만 조회할 수 있음
@@ -183,6 +206,7 @@ Response:
 - MVP 초기 구현은 `problem_sets`의 세트 태그 배열과 `questions.tag` 문항 태그를 사용한다.
 - 세트 태그: `language_tags`, `framework_tags`, `library_tags`, `topic_tags`
 - 문항 태그: `questions.tag`
-- 문제 세트 목록의 MVP Lite 필터는 난이도/언어/프레임워크를 기준으로 ProblemSet 단위로 반환한다.
+- 문항 제목: `questions.title`
+- 문제 목록의 MVP Lite 필터는 문항 난이도/언어/프레임워크를 기준으로 Question 단위로 반환한다.
 - 라이브러리/주제/문항 태그는 카드와 상세 화면에 노출하되, 현재 목록 필터에는 포함하지 않는다.
 - 태그 관리, 동의어, 검색, 추천이 복잡해지면 `tags`, `problem_set_tags`, `question_tags` 테이블로 정규화한다.

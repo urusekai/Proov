@@ -4,9 +4,9 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
 const DIFFICULTY_LABEL: Record<string, string> = {
-  BEGINNER: "Beginner",
-  INTERMEDIATE: "Intermediate",
-  ADVANCED: "Advanced",
+  BEGINNER: "쉬움",
+  INTERMEDIATE: "보통",
+  ADVANCED: "어려움",
 };
 
 const DIFFICULTY_STYLE: Record<string, string> = {
@@ -32,6 +32,8 @@ type Props = {
   repository: string;
   difficulty: "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
   score: 0 | 33 | 67 | 100;
+  correctCount: number;
+  totalCount: number;
   submittedAt: string;
   isLast?: boolean;
 };
@@ -42,8 +44,11 @@ export function SubmissionListItem({
   repository,
   difficulty,
   score,
+  correctCount,
+  totalCount,
   submittedAt,
 }: Props) {
+  const resultLabel = totalCount === 1 ? (correctCount === 1 ? "정답" : "오답") : `${score}점`;
   return (
     <Link
       href={`/history/${id}`}
@@ -64,7 +69,7 @@ export function SubmissionListItem({
         </div>
       </div>
       <span className={`text-lg font-extrabold tabular-nums shrink-0 ${scoreColor(score)}`}>
-        {score}점
+        {resultLabel}
       </span>
       <ChevronRight className="w-4 h-4 text-muted-text group-hover:text-accent transition-colors shrink-0" />
     </Link>

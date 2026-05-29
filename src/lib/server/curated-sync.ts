@@ -1,5 +1,6 @@
 import { curatedProblemSets, getCuratedCreatedAt } from "@/data/curated-problem-sets";
 import { curatedProblemSetDbId, curatedQuestionDbId } from "@/lib/server/stable-id";
+import type { QuestionDifficulty } from "@/lib/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export async function ensureCuratedProblemSetInDb(
@@ -23,7 +24,6 @@ export async function ensureCuratedProblemSetInDb(
       source_type: "CURATED",
       visibility: "PUBLIC",
       display_title: curated.displayTitle,
-      summary: curated.summary,
       difficulty: curated.difficulty,
       estimated_minutes: 8,
       language_tags: curated.languageTags,
@@ -51,6 +51,8 @@ export async function ensureCuratedProblemSetInDb(
       problem_set_id: problemSetId,
       type: question.type,
       tag: question.tag,
+      difficulty: (question as { difficulty?: QuestionDifficulty }).difficulty ?? curated.difficulty,
+      title: question.title,
       question: question.question,
       options: question.options,
       answer: question.answer,

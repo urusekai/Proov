@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { Eye, EyeOff, LockKeyhole, Mail, User } from "lucide-react";
-import { FormEvent, Suspense, useEffect, useState } from "react";
+import { FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AuthShell } from "../_components/auth-shell";
-import { getSession, supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
+import { useGuestOnly } from "@/components/auth-provider";
 
 function SignupForm() {
   const router = useRouter();
@@ -14,12 +15,8 @@ function SignupForm() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
-  useEffect(() => {
-    getSession().then((session) => {
-      if (!session) return;
-      router.replace(searchParams.get("redirect") ?? "/");
-    });
-  }, [router, searchParams]);
+  const redirect = searchParams.get("redirect") ?? "/";
+  const isAuthLoading = useGuestOnly(redirect);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -52,6 +49,8 @@ function SignupForm() {
         setNotice("회원가입이 완료되었습니다. 이메일 인증 설정이 켜져 있다면 메일을 확인해 주세요.");
       });
   };
+
+  if (isAuthLoading) return null;
 
   return (
     <AuthShell>

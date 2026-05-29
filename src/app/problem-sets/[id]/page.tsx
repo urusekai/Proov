@@ -4,8 +4,6 @@ import React, { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
-  ArrowRight,
   FileCode,
   GitPullRequest,
   Loader2,
@@ -14,19 +12,18 @@ import {
 } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { apiFetch } from "@/lib/supabase";
+import { invalidateQuestionProgressCache } from "@/lib/use-question-progress";
 import type { ProblemSetDetail, QuestionTag } from "@/lib/types";
 
 const TAG_LABELS: Record<QuestionTag, string> = {
-  CODE_BEHAVIOR: "Code Behavior",
-  DATA_FLOW: "Data Flow",
-  STATE_CHANGE: "State Change",
-  SIDE_EFFECT: "Side Effect",
-  ERROR_HANDLING: "Error Handling",
-  API_CONTRACT: "API Contract",
-  TEST_INTENT: "Test Intent",
-  LOGIC_ERROR: "Logic Error",
-  STRUCTURAL_CHANGE: "Structural Change",
-  CONFIG_CHANGE: "Config Change",
+  CODE_BEHAVIOR: "코드 동작",
+  DATA_FLOW: "데이터 흐름",
+  STATE_CHANGE: "상태 변화",
+  ERROR_HANDLING: "에러 처리",
+  API_CONTRACT: "API 명세",
+  TEST_INTENT: "테스트 의도",
+  STRUCTURAL_CHANGE: "구조 변경",
+  CONFIG_CHANGE: "설정값",
 };
 
 type GitHubFile = {
@@ -90,16 +87,20 @@ function DiffViewer({ patch }: { patch: string }) {
 
 export default function ProblemSetSolvePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ question?: string }>;
 }) {
   const { id } = use(params);
+  const query = use(searchParams);
+  const targetQuestionId = query.question;
   const router = useRouter();
   const [problemSet, setProblemSet] = useState<ProblemSetDetail | null>(null);
   const [notFound, setNotFound] = useState(false);
 
   const [currentQ, setCurrentQ] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, "A" | "B" | "C" | "D">>({});
+  const [answers, setAnswers] = useState<Record<string, "A" | "B" | "C" | "D">>({});
   const [activeFile, setActiveFile] = useState<string>("");
   const [diffState, setDiffState] = useState<DiffState>({
     status: "loading",
@@ -116,8 +117,13 @@ export default function ProblemSetSolvePage({
       })
       .then((data: { item: ProblemSetDetail }) => {
         if (cancelled) return;
+        const initialIndex = Math.max(
+          0,
+          data.item.questions.findIndex((question) => question.id === targetQuestionId)
+        );
         setProblemSet(data.item);
-        setActiveFile(data.item.sourceFiles[0] ?? "");
+        setCurrentQ(initialIndex);
+        setActiveFile(data.item.questions[initialIndex]?.relatedFiles[0] ?? data.item.sourceFiles[0] ?? "");
         if (data.item.diffFiles && data.item.diffFiles.length > 0) {
           setDiffState({ status: "ready", files: data.item.diffFiles });
         }
@@ -129,7 +135,7 @@ export default function ProblemSetSolvePage({
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, targetQuestionId]);
 
   useEffect(() => {
     if (!problemSet || (problemSet.diffFiles && problemSet.diffFiles.length > 0)) return;
@@ -175,7 +181,7 @@ export default function ProblemSetSolvePage({
         <main className="flex-grow flex items-center justify-center">
           <div className="text-center py-24">
             <p className="text-lg font-bold text-text mb-2">
-              문제 세트를 찾을 수 없습니다.
+              문제를 찾을 수 없습니다.
             </p>
             <Link
               href="/problem-sets"
@@ -192,7 +198,6 @@ export default function ProblemSetSolvePage({
   if (!problemSet) return null;
 
   const question = problemSet.questions[currentQ];
-  const totalQ = problemSet.questions.length;
   const currentFileList =
     diffState.files.length > 0
       ? diffState.files.map((f) => f.filename)
@@ -210,13 +215,7 @@ export default function ProblemSetSolvePage({
     )?.patch ?? null;
 
   const handleSelect = (opt: "A" | "B" | "C" | "D") => {
-    setAnswers((prev) => ({ ...prev, [currentQ]: opt }));
-  };
-
-  const moveToQuestion = (nextIndex: number) => {
-    const safeIndex = Math.max(0, Math.min(totalQ - 1, nextIndex));
-    setCurrentQ(safeIndex);
-    setActiveFile(problemSet.questions[safeIndex].relatedFiles[0] ?? problemSet.sourceFiles[0] ?? "");
+    setAnswers((prev) => ({ ...prev, [question.id]: opt }));
   };
 
   const handleSubmit = () => {
@@ -229,10 +228,12 @@ export default function ProblemSetSolvePage({
     apiFetch(`/api/problem-sets/${id}/submit`, {
       method: "POST",
       body: JSON.stringify({
-        answers: problemSet.questions.map((question, index) => ({
-          questionId: question.id,
-          selectedAnswer: answers[index],
-        })),
+        answers: [
+          {
+            questionId: question.id,
+            selectedAnswer: answers[question.id],
+          },
+        ],
       }),
     })
       .then((res) => {
@@ -240,20 +241,22 @@ export default function ProblemSetSolvePage({
         return res.json();
       })
       .then((data) => {
+        invalidateQuestionProgressCache();
         sessionStorage.setItem(`result-${id}`, JSON.stringify(data.result));
-        router.push(`/problem-sets/${id}/result`);
+        router.push(`/problem-sets/${id}/result?question=${encodeURIComponent(question.id)}`);
       })
       .catch(() => {
-        router.push(`/problem-sets/${id}/result`);
+        router.push(`/problem-sets/${id}/result?question=${encodeURIComponent(question.id)}`);
       });
   };
 
-  const allAnswered = Object.keys(answers).length === totalQ;
+  const selectedAnswer = answers[question.id];
+  const allAnswered = Boolean(selectedAnswer);
   const finalPrUrl = problemSet.prUrl;
 
   return (
     <div className="h-screen overflow-hidden flex flex-col bg-background font-sans selection:bg-accent/20">
-      <SiteHeader activePath="/problem-sets" />
+      <SiteHeader activePath="/problem-sets" variant="wide" />
 
       <main className="flex-1 min-h-0 overflow-auto xl:overflow-hidden">
         <div className="w-full max-w-none mx-auto px-4 py-4 md:px-6 xl:px-8 2xl:px-10 flex flex-col gap-4 xl:h-full xl:min-h-0 xl:overflow-hidden">
@@ -392,29 +395,6 @@ export default function ProblemSetSolvePage({
             {/* RIGHT PANEL: Question Solver */}
             <aside className="bg-white rounded-xl border border-lavender-tint shadow-default p-5 md:p-6 min-w-0 xl:h-full xl:min-h-0 xl:overflow-hidden flex flex-col">
               <div className="xl:flex-1 xl:min-h-0">
-                <div className="grid grid-cols-3 gap-2 mb-7" aria-label="문제 진행률">
-                  {problemSet.questions.map((_, idx) => {
-                    const isSelected = idx === currentQ;
-                    const isAnswered = answers[idx] !== undefined;
-
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => moveToQuestion(idx)}
-                        aria-label={`문제 ${idx + 1}로 이동`}
-                        className={`h-2.5 rounded-full transition-colors ${
-                          isSelected
-                            ? "bg-accent"
-                            : isAnswered
-                              ? "bg-accent/35"
-                              : "bg-lavender-tint"
-                        }`}
-                      />
-                    );
-                  })}
-                </div>
-
                 <div className="mb-5 flex justify-start">
                   <span className="inline-flex items-center bg-accent/10 text-accent text-[11px] font-bold px-2.5 py-0.5 rounded-full">
                     {TAG_LABELS[question.tag]}
@@ -427,7 +407,7 @@ export default function ProblemSetSolvePage({
 
                 <div className="space-y-3">
                   {question.options.map((option) => {
-                    const isSelected = answers[currentQ] === option.id;
+                    const isSelected = answers[question.id] === option.id;
 
                     return (
                       <button
@@ -454,26 +434,6 @@ export default function ProblemSetSolvePage({
               </div>
 
               <div className="mt-6 xl:mt-0 xl:pt-5 xl:shrink-0 flex flex-col gap-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => moveToQuestion(currentQ - 1)}
-                    disabled={currentQ === 0}
-                    className="flex items-center justify-center gap-1 text-xs font-bold text-muted-text hover:text-text px-3 py-2.5 border border-lavender-tint rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ArrowLeft className="w-3.5 h-3.5" />
-                    <span>이전</span>
-                  </button>
-
-                  <button
-                    onClick={() => moveToQuestion(currentQ + 1)}
-                    disabled={currentQ === totalQ - 1}
-                    className="flex items-center justify-center gap-1 text-xs font-bold text-muted-text hover:text-text px-3 py-2.5 border border-lavender-tint rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <span>다음</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
                 <button
                   onClick={handleSubmit}
                   disabled={!allAnswered}

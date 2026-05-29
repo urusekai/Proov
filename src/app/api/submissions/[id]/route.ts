@@ -1,9 +1,9 @@
 import { submissionStoreErrorResponse } from "@/lib/server/submission-errors";
 import { createSupabaseAdmin, getAuthenticatedUser, hasSupabaseServerEnv, jsonError } from "@/lib/server/supabase-admin";
 import { dbToDetail } from "@/lib/problem-set-mappers";
-import type { SubmissionResult } from "@/lib/types";
+import type { SubmissionResult, SubmissionScore } from "@/lib/types";
 
-function toScore(score: number): 0 | 33 | 67 | 100 {
+function toScore(score: number): SubmissionScore {
   if (score >= 100) return 100;
   if (score >= 67) return 67;
   if (score >= 33) return 33;
@@ -81,7 +81,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     totalCount: submission.total_count,
     submittedAt: submission.submitted_at,
     saved: true,
-    answers: detail.questions.map((question) => {
+    answers: detail.questions.filter((question) => answerMap.has(question.id)).map((question) => {
       const answer = answerMap.get(question.id);
       return {
         questionId: question.id,
@@ -89,6 +89,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         correctAnswer: answer?.correct_answer ?? question.answer ?? "A",
         isCorrect: answer?.is_correct ?? false,
         tag: question.tag,
+        difficulty: question.difficulty,
+        title: question.title,
         question: question.question,
         options: question.options,
         explanation: question.explanation ?? "",

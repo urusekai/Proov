@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { Geist_Mono } from "next/font/google";
+import { Providers } from "@/components/providers";
 import "./globals.css";
 
 const geistMono = Geist_Mono({
   subsets: ["latin"],
   variable: "--font-geist-mono",
 });
+
 
 export const metadata: Metadata = {
   title: "Proov | AI 기반 코드 이해력 평가 및 학습 플랫폼",
@@ -20,7 +22,7 @@ export default function RootLayout({
   return (
     <html lang="ko" className={`${geistMono.variable}`}>
       <body className="antialiased min-h-screen bg-background text-text">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

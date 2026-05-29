@@ -2,8 +2,10 @@ import { curatedProblemSets, getCuratedCreatedAt } from "@/data/curated-problem-
 import type {
   GitHubDiffFile,
   ProblemQuestion,
+  ProblemQuestionSummary,
   ProblemSetDetail,
   ProblemSetSummary,
+  QuestionDifficulty,
   QuestionTag,
 } from "@/lib/types";
 
@@ -12,7 +14,6 @@ type DbProblemSet = {
   source_type: "CURATED" | "GENERATED";
   visibility: "PUBLIC" | "PRIVATE";
   display_title: string;
-  summary: string;
   difficulty: "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
   estimated_minutes: number | null;
   language_tags: string[] | null;
@@ -34,6 +35,8 @@ type DbQuestion = {
   id: string;
   type: "MULTIPLE_CHOICE";
   tag: QuestionTag;
+  difficulty?: QuestionDifficulty | null;
+  title: string | null;
   question: string;
   options: { id: "A" | "B" | "C" | "D"; text: string }[];
   answer: "A" | "B" | "C" | "D";
@@ -60,6 +63,8 @@ export function curatedToDetail(id: string, includeAnswers: boolean): ProblemSet
     id: question.id,
     type: question.type,
     tag: question.tag,
+    difficulty: (question as { difficulty?: QuestionDifficulty }).difficulty ?? problemSet.difficulty,
+    title: question.title,
     question: question.question,
     options: [...question.options],
     relatedFiles: [...question.relatedFiles],
@@ -74,7 +79,6 @@ export function curatedToDetail(id: string, includeAnswers: boolean): ProblemSet
     sourceType: problemSet.sourceType,
     visibility: problemSet.visibility,
     displayTitle: problemSet.displayTitle,
-    summary: problemSet.summary,
     difficulty: problemSet.difficulty,
     estimatedMinutes: 8,
     languageTags: [...problemSet.languageTags],
@@ -105,6 +109,14 @@ export function curatedToSummaries(): ProblemSetSummary[] {
   });
 }
 
+export function curatedToQuestionSummaries(): ProblemQuestionSummary[] {
+  return curatedProblemSets.flatMap((set) => {
+    const detail = curatedToDetail(set.id, false);
+    if (!detail) throw new Error(`Missing curated problem set: ${set.id}`);
+    return detailToQuestionSummaries(detail);
+  });
+}
+
 export function dbToDetail(
   problemSet: DbProblemSet,
   questions: DbQuestion[],
@@ -122,7 +134,6 @@ export function dbToDetail(
     sourceType: problemSet.source_type,
     visibility: problemSet.visibility,
     displayTitle: problemSet.display_title,
-    summary: problemSet.summary,
     difficulty: problemSet.difficulty,
     estimatedMinutes: problemSet.estimated_minutes ?? 8,
     languageTags: problemSet.language_tags ?? [],
@@ -146,6 +157,8 @@ export function dbToDetail(
       id: question.id,
       type: question.type,
       tag: question.tag,
+      difficulty: question.difficulty ?? problemSet.difficulty,
+      title: question.title || question.question,
       question: question.question,
       options: question.options,
       relatedFiles: question.related_files ?? [],
@@ -157,13 +170,45 @@ export function dbToDetail(
   };
 }
 
+export function detailToQuestionSummaries(
+  detail: ProblemSetDetail,
+  submissionCountMap?: Map<string, number>
+): ProblemQuestionSummary[] {
+  return detail.questions.map((question) => ({
+    id: question.id,
+    problemSetId: detail.id,
+    sourceType: detail.sourceType,
+    visibility: detail.visibility,
+    displayTitle: detail.displayTitle,
+    title: question.title,
+    question: question.question,
+    tag: question.tag,
+    difficulty: question.difficulty,
+    estimatedMinutes: 3,
+    languageTags: detail.languageTags,
+    frameworkTags: detail.frameworkTags,
+    libraryTags: detail.libraryTags,
+    topicTags: detail.topicTags,
+    repository: detail.repository,
+    repositoryOwner: detail.repositoryOwner,
+    repositoryName: detail.repositoryName,
+    pullNumber: detail.pullNumber,
+    prUrl: detail.prUrl,
+    prTitle: detail.prTitle,
+    sourcePatchUrl: detail.sourcePatchUrl,
+    relatedFiles: question.relatedFiles,
+    orderIndex: question.orderIndex,
+    createdAt: detail.createdAt,
+    submissionCount: submissionCountMap?.get(question.id) ?? 0,
+  }));
+}
+
 export function detailToSummary(detail: ProblemSetDetail): ProblemSetSummary {
   return {
     id: detail.id,
     sourceType: detail.sourceType,
     visibility: detail.visibility,
     displayTitle: detail.displayTitle,
-    summary: detail.summary,
     difficulty: detail.difficulty,
     estimatedMinutes: detail.estimatedMinutes,
     languageTags: detail.languageTags,

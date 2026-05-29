@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import { Menu, X, LogOut } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { getSession, signOut, subscribeAuth, type AppSession } from "@/lib/supabase";
+import { Menu, X } from "lucide-react";
+import { useAuth } from "@/components/auth-provider";
+import { siteContentClass } from "@/lib/layout";
 
 const ProovLogo = ({ className = "w-6 h-6" }: { className?: string }) => (
   <svg
@@ -21,30 +21,33 @@ const ProovLogo = ({ className = "w-6 h-6" }: { className?: string }) => (
 );
 
 const navLinks = [
-  { href: "/problem-sets/new", label: "문제 만들기" },
   { href: "/problem-sets", label: "문제 목록" },
+  { href: "/problem-sets/new", label: "문제 만들기" },
+  { href: "/my-problems", label: "내가 만든 문제" },
   { href: "/history", label: "내 기록" },
 ];
 
-export function SiteHeader({ activePath }: { activePath?: string }) {
-  const router = useRouter();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [session, setSession] = useState<AppSession | null>(null);
+const headerInnerClass = {
+  default: `${siteContentClass} relative h-16 flex items-center justify-between`,
+  wide: "relative w-full max-w-none mx-auto px-4 md:px-6 xl:px-8 2xl:px-10 h-16 flex items-center justify-between",
+} as const;
 
-  useEffect(() => {
-    let mounted = true;
-    const refresh = () => {
-      getSession().then((nextSession) => {
-        if (mounted) setSession(nextSession);
-      });
-    };
-    refresh();
-    const unsubscribe = subscribeAuth(refresh);
-    return () => {
-      mounted = false;
-      unsubscribe();
-    };
-  }, []);
+const desktopNavClass = (isActive: boolean) =>
+  `px-3 py-1.5 rounded-lg transition-all duration-200 ${
+    isActive
+      ? "bg-accent/10 text-accent font-semibold"
+      : "text-muted-text hover:bg-lavender-tint hover:text-text"
+  }`;
+
+type SiteHeaderProps = {
+  activePath?: string;
+  /** 문제 풀이 화면만 wide(전체 폭). 그 외 페이지는 default(콘텐츠 폭 1248px). */
+  variant?: keyof typeof headerInnerClass;
+};
+
+export function SiteHeader({ activePath, variant = "default" }: SiteHeaderProps) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { status, session } = useAuth();
 
   const isLinkActive = (href: string) =>
     activePath === href ||
@@ -52,155 +55,156 @@ export function SiteHeader({ activePath }: { activePath?: string }) {
       activePath !== "/problem-sets/new" &&
       activePath?.startsWith(`${href}/`));
 
-  const handleSignOut = () => {
-    signOut();
-    router.push("/");
-  };
+  const closeMobileMenu = () => setMobileMenuOpen(false);
 
   return (
-    <header className="sticky top-0 z-50 bg-background">
-      <div className="w-full max-w-none mx-auto px-4 md:px-6 xl:px-8 2xl:px-10 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-8">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-primary font-bold text-[20px] leading-none hover:opacity-90 transition-opacity"
-          >
-            <ProovLogo className="w-[18px] h-[18px] text-accent" />
-            <span>Proov</span>
-          </Link>
+    <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-lavender-tint">
+      <div className={headerInnerClass[variant]}>
+        <Link
+          href="/"
+          className="group relative z-10 flex shrink-0 items-center gap-2.5 leading-none"
+        >
+          <ProovLogo className="w-[22px] h-[22px] text-primary transition-colors duration-200 group-hover:text-accent" />
+          <span className="text-primary font-bold text-2xl transition-colors duration-200 group-hover:text-accent">
+            Proov
+          </span>
+        </Link>
 
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-text">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`hover:text-accent transition-colors relative py-1 after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-accent after:transition-transform ${
-                  isLinkActive(link.href)
-                    ? "text-accent after:scale-x-100"
-                    : "after:scale-x-0 hover:after:scale-x-100"
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
+        <nav
+          aria-label="주요 메뉴"
+          className="absolute left-1/2 top-1/2 z-10 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-1 text-sm font-medium md:flex"
+        >
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={desktopNavClass(isLinkActive(link.href))}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
 
-        <div className="hidden md:flex items-center gap-3">
-          {session ? (
-            <>
-              <Link
-                href="/mypage"
-                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-              >
-                {session.user.avatar_url ? (
-                  <img src={session.user.avatar_url} alt={session.user.nickname} className="w-7 h-7 rounded-full object-cover" />
-                ) : (
-                  <div className="w-7 h-7 rounded-full bg-accent/15 text-accent flex items-center justify-center text-xs font-bold shrink-0">
-                    {session.user.nickname.charAt(0)}
-                  </div>
-                )}
-                <span className="text-sm text-muted-text font-medium truncate max-w-[120px]">
-                  {session.user.nickname}
-                </span>
-              </Link>
-              <button
-                onClick={handleSignOut}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-text hover:text-text px-4 py-2 transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                로그아웃
-              </button>
-            </>
+        <div className="relative z-10 ml-auto flex items-center gap-1">
+          <div className="hidden md:flex items-center gap-1">
+          {status === "loading" ? (
+            <div className="h-9 w-[120px] shrink-0" aria-hidden />
+          ) : session ? (
+            <Link
+              href="/mypage"
+              className="group flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-lavender-tint transition-all duration-200"
+            >
+              {session.user.avatar_url ? (
+                <img
+                  src={session.user.avatar_url}
+                  alt={session.user.nickname}
+                  className="w-7 h-7 rounded-full object-cover ring-2 ring-transparent group-hover:ring-accent/30 transition-all duration-200"
+                />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-accent/15 text-accent flex items-center justify-center text-xs font-bold shrink-0 ring-2 ring-transparent group-hover:ring-accent/30 transition-all duration-200">
+                  {session.user.nickname.charAt(0)}
+                </div>
+              )}
+              <span className="text-sm text-muted-text font-medium truncate max-w-[120px] group-hover:text-text transition-colors duration-200">
+                {session.user.nickname}
+              </span>
+            </Link>
           ) : (
             <>
               <Link
                 href="/auth/login"
-                className="text-sm font-medium text-muted-text hover:text-text px-4 py-2 transition-colors"
+                className="text-sm font-medium text-muted-text hover:text-text px-4 py-2 rounded-lg hover:bg-lavender-tint transition-all duration-200"
               >
                 로그인
               </Link>
               <Link
                 href="/auth/signup"
-                className="text-sm font-medium bg-accent text-white px-5 py-2.5 rounded-lg hover:bg-primary transition-all hover:shadow-default active:scale-[0.98]"
+                className="text-sm font-medium bg-accent text-white px-5 py-2.5 rounded-lg hover:bg-primary transition-all duration-200 hover:shadow-default active:scale-[0.97]"
               >
                 회원가입
               </Link>
             </>
           )}
-        </div>
+          </div>
 
-        <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="md:hidden p-2 text-muted-text hover:text-text hover:bg-lavender-tint/50 rounded-lg transition-colors"
-          aria-label="메뉴 열기"
-        >
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 text-muted-text hover:text-text hover:bg-lavender-tint rounded-lg transition-all duration-200 active:scale-[0.93]"
+            aria-label="메뉴 열기"
+          >
           {mobileMenuOpen ? (
             <X className="w-6 h-6" />
           ) : (
             <Menu className="w-6 h-6" />
           )}
-        </button>
+          </button>
+        </div>
       </div>
 
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-lavender-tint/60 bg-background px-4 py-4">
-          <nav className="flex flex-col gap-4 text-sm font-medium text-muted-text mb-6">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className={`hover:text-accent py-1 transition-colors ${
-                  isLinkActive(link.href) ? "text-accent" : ""
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-          {session ? (
-            <div className="flex flex-col gap-2">
+        <div className="md:hidden border-t border-lavender-tint/60 bg-background py-4">
+          <div
+            className={
+              variant === "wide"
+                ? "px-4 md:px-6 xl:px-8 2xl:px-10"
+                : siteContentClass
+            }
+          >
+            <nav className="flex flex-col gap-1 text-sm font-medium mb-6">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={closeMobileMenu}
+                  className={desktopNavClass(isLinkActive(link.href))}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
+            {status === "loading" ? (
+              <div className="h-20" aria-hidden />
+            ) : session ? (
               <Link
                 href="/mypage"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2 px-1 pb-3 border-b border-lavender-tint/60 hover:opacity-80 transition-opacity"
+                onClick={closeMobileMenu}
+                className="flex items-center gap-2 px-1 hover:opacity-80 transition-opacity"
               >
                 {session.user.avatar_url ? (
-                  <img src={session.user.avatar_url} alt={session.user.nickname} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                  <img
+                    src={session.user.avatar_url}
+                    alt={session.user.nickname}
+                    className="w-7 h-7 rounded-full object-cover shrink-0"
+                  />
                 ) : (
                   <div className="w-7 h-7 rounded-full bg-accent/15 text-accent flex items-center justify-center text-xs font-bold shrink-0">
                     {session.user.nickname.charAt(0)}
                   </div>
                 )}
-                <span className="text-sm text-muted-text font-medium">{session.user.nickname}</span>
+                <span className="text-sm text-muted-text font-medium">
+                  {session.user.nickname}
+                </span>
               </Link>
-              <button
-                onClick={handleSignOut}
-                className="inline-flex items-center justify-center gap-2 text-sm font-medium text-muted-text hover:text-text py-2.5 border border-lavender-tint rounded-lg transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                로그아웃
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              <Link
-                href="/auth/login"
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-sm font-medium text-muted-text hover:text-text py-2.5 border border-lavender-tint rounded-lg transition-colors text-center"
-              >
-                로그인
-              </Link>
-              <Link
-                href="/auth/signup"
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-sm font-medium bg-accent text-white py-2.5 rounded-lg hover:bg-primary transition-all text-center"
-              >
-                회원가입
-              </Link>
-            </div>
-          )}
+            ) : (
+              <div className="flex flex-col gap-2">
+                <Link
+                  href="/auth/login"
+                  onClick={closeMobileMenu}
+                  className="text-sm font-medium text-muted-text hover:text-text py-2.5 border border-lavender-tint rounded-lg hover:bg-lavender-tint transition-all duration-200 text-center active:scale-[0.98]"
+                >
+                  로그인
+                </Link>
+                <Link
+                  href="/auth/signup"
+                  onClick={closeMobileMenu}
+                  className="text-sm font-medium bg-accent text-white py-2.5 rounded-lg hover:bg-primary transition-all duration-200 text-center active:scale-[0.98]"
+                >
+                  회원가입
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </header>

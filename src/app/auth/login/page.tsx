@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { AuthShell } from "../_components/auth-shell";
-import { getSession, supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
+import { useGuestOnly } from "@/components/auth-provider";
 
 function LoginForm() {
   const router = useRouter();
@@ -14,13 +15,8 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    getSession().then((session) => {
-      if (!session) return;
-      const redirect = searchParams.get("redirect") ?? "/";
-      router.replace(redirect);
-    });
-  }, [router, searchParams]);
+  const redirect = searchParams.get("redirect") ?? "/";
+  const isAuthLoading = useGuestOnly(redirect);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -28,7 +24,7 @@ function LoginForm() {
     const email = (form.elements.namedItem("email") as HTMLInputElement).value;
     const password = (form.elements.namedItem("password") as HTMLInputElement).value;
 
-    const redirect = searchParams.get("redirect") ?? "/problem-sets/new";
+    const afterLoginRedirect = searchParams.get("redirect") ?? "/problem-sets/new";
 
     if (!supabase) {
       setError("Supabase 환경 변수가 없어 로그인할 수 없습니다.");
@@ -40,9 +36,11 @@ function LoginForm() {
         setError("이메일 또는 비밀번호가 올바르지 않습니다.");
         return;
       }
-      router.push(redirect);
+      router.push(afterLoginRedirect);
     });
   };
+
+  if (isAuthLoading) return null;
 
   return (
     <AuthShell>

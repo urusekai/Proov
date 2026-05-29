@@ -34,7 +34,6 @@ export async function POST(request: Request) {
         source_type: "GENERATED",
         visibility: "PRIVATE",
         display_title: generated.displayTitle,
-        summary: generated.summary,
         difficulty: generated.difficulty,
         estimated_minutes: 8,
         language_tags: generated.languageTags,
@@ -63,6 +62,8 @@ export async function POST(request: Request) {
         problem_set_id: problemSet.id,
         type: question.type,
         tag: question.tag,
+        difficulty: question.difficulty,
+        title: question.title,
         question: question.question,
         options: question.options,
         answer: question.answer,
@@ -83,11 +84,17 @@ export async function POST(request: Request) {
       return jsonError(
         422,
         "INSUFFICIENT_DIFF",
-        "이 PR은 변경 내용이 너무 적어 3개의 문제를 만들기 어렵습니다."
+        "이 PR은 변경 내용이 너무 적어 문제를 만들기 어렵습니다."
       );
     }
     if (code === "INVALID_PR_URL") {
       return jsonError(400, "INVALID_PR_URL", "공개 GitHub Pull Request URL 형식이 아닙니다.");
+    }
+    if (code === "PR_NOT_FOUND") {
+      return jsonError(404, "PR_NOT_FOUND", "PR을 찾을 수 없습니다. 비공개 저장소이거나 존재하지 않는 PR입니다.");
+    }
+    if (code === "GITHUB_RATE_LIMITED") {
+      return jsonError(429, "GITHUB_RATE_LIMITED", "GitHub API 호출 한도를 초과했습니다. 잠시 후 다시 시도해 주세요.");
     }
     return jsonError(500, code, "문제 생성 중 오류가 발생했습니다.");
   }

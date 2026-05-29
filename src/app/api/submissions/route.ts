@@ -1,8 +1,9 @@
+import { dedupeSubmissionsByQuestion } from "@/lib/server/submission-history";
 import { submissionStoreErrorResponse } from "@/lib/server/submission-errors";
 import { createSupabaseAdmin, getAuthenticatedUser, hasSupabaseServerEnv, jsonError } from "@/lib/server/supabase-admin";
-import type { SubmissionListItemData } from "@/lib/types";
+import type { SubmissionListItemData, SubmissionScore } from "@/lib/types";
 
-function toScore(score: number): 0 | 33 | 67 | 100 {
+function toScore(score: number): SubmissionScore {
   if (score >= 100) return 100;
   if (score >= 67) return 67;
   if (score >= 33) return 33;
@@ -27,6 +28,7 @@ export async function GET(request: Request) {
       id,
       score,
       correct_count,
+      total_count,
       submitted_at,
       problem_sets (
         id,
@@ -45,6 +47,8 @@ export async function GET(request: Request) {
         is_correct,
         questions (
           tag,
+          difficulty,
+          title,
           question,
           options,
           explanation,
@@ -68,11 +72,27 @@ export async function GET(request: Request) {
     const problemSet = Array.isArray(submission.problem_sets)
       ? submission.problem_sets[0]
       : submission.problem_sets;
+    const answers = (submission.submission_answers ?? []).map((answer) => {
+      const question = Array.isArray(answer.questions) ? answer.questions[0] : answer.questions;
+      return {
+        questionId: answer.question_id,
+        selectedAnswer: answer.selected_answer,
+        correctAnswer: answer.correct_answer,
+        isCorrect: answer.is_correct,
+        tag: question.tag,
+        difficulty: question.difficulty ?? problemSet.difficulty,
+        title: question.title || question.question,
+        question: question.question,
+        options: question.options,
+        explanation: question.explanation,
+        relatedFiles: question.related_files ?? [],
+      };
+    });
 
     return {
       id: submission.id,
       problemSetId: problemSet.id,
-      displayTitle: problemSet.display_title,
+      displayTitle: answers[0]?.title ?? problemSet.display_title,
       repository: `${problemSet.repository_owner}/${problemSet.repository_name}`,
       repositoryOwner: problemSet.repository_owner,
       repositoryName: problemSet.repository_name,
@@ -82,23 +102,11 @@ export async function GET(request: Request) {
       difficulty: problemSet.difficulty,
       score: toScore(submission.score),
       correctCount: submission.correct_count,
+      totalCount: submission.total_count,
       submittedAt: submission.submitted_at,
-      answers: (submission.submission_answers ?? []).map((answer) => {
-        const question = Array.isArray(answer.questions) ? answer.questions[0] : answer.questions;
-        return {
-          questionId: answer.question_id,
-          selectedAnswer: answer.selected_answer,
-          correctAnswer: answer.correct_answer,
-          isCorrect: answer.is_correct,
-          tag: question.tag,
-          question: question.question,
-          options: question.options,
-          explanation: question.explanation,
-          relatedFiles: question.related_files ?? [],
-        };
-      }),
+      answers,
     };
   });
 
-  return Response.json({ items });
+  return Response.json({ items: dedupeSubmissionsByQuestion(items) });
 }

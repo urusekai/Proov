@@ -2,17 +2,22 @@
 
 import React, { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Check, GitPullRequest, X } from "lucide-react";
+import { ArrowRight, Check, Info, X } from "lucide-react";
+import { PrMetaBox } from "@/components/pr-meta-box";
+import { formatPrRepository, parseGitHubPrUrl } from "@/lib/github-pr-url";
+import { getPrDiffGuidanceItems } from "@/lib/pr-diff-policy";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { apiFetch, getSession } from "@/lib/supabase";
+import { apiFetch } from "@/lib/supabase";
+import { useRequireAuth } from "@/components/auth-provider";
+import { siteContentClass } from "@/lib/layout";
 
 const loadingPhases = [
   "Pull Request URL을 확인하고 있습니다.",
-  "PR 제목, 설명, 변경 파일을 불러오고 있습니다.",
-  "학습에 필요한 코드 변경만 선별하고 있습니다.",
-  "코드 이해력을 확인할 객관식 3문항을 준비하고 있습니다.",
-  "문제, 태그, 해설, 관련 파일을 마지막으로 점검하고 있습니다.",
+  "PR 코드 변경 내용을 불러오고 있습니다.",
+  "AI가 코드를 분석하고 있습니다.",
+  "객관식 문항을 생성하고 있습니다.",
+  "문제 세트를 저장하고 있습니다.",
 ];
 
 function ProblemSetNewContent() {
@@ -24,21 +29,16 @@ function ProblemSetNewContent() {
     initialPrUrl ? "LOADING" : "INPUT"
   );
   const [loadingStep, setLoadingStep] = useState(0);
-  const [loadingDotTick, setLoadingDotTick] = useState(0);
-  const [authChecked, setAuthChecked] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [prPreview, setPrPreview] = useState<{
+    repository: string;
+    pullNumber: number;
+    prTitle?: string;
+  } | null>(null);
   const autoStartedRef = useRef(false);
-
-  useEffect(() => {
-    getSession().then((session) => {
-      if (!session) {
-        const redirectPath = "/problem-sets/new" + (initialPrUrl ? `?url=${encodeURIComponent(initialPrUrl)}` : "");
-        router.replace(`/auth/login?redirect=${encodeURIComponent(redirectPath)}`);
-      } else {
-        setAuthChecked(true);
-      }
-    });
-  }, [router, initialPrUrl]);
+  const redirectPath =
+    "/problem-sets/new" + (initialPrUrl ? `?url=${encodeURIComponent(initialPrUrl)}` : "");
+  const { isReady } = useRequireAuth(redirectPath);
 
   useEffect(() => {
     if (step !== "LOADING") return;
@@ -48,20 +48,54 @@ function ProblemSetNewContent() {
         if (prev >= loadingPhases.length - 1) return prev;
         return prev + 1;
       });
-    }, 950);
+    }, 2500);
 
     return () => window.clearInterval(interval);
   }, [router, step]);
 
   useEffect(() => {
-    if (step !== "LOADING") return;
+    if (step !== "LOADING" || !prUrl.trim()) {
+      if (step !== "LOADING") setPrPreview(null);
+      return;
+    }
 
-    const interval = window.setInterval(() => {
-      setLoadingDotTick((prev) => prev + 1);
-    }, 450);
+    const parsed = parseGitHubPrUrl(prUrl);
+    if (!parsed) {
+      setPrPreview(null);
+      return;
+    }
 
-    return () => window.clearInterval(interval);
-  }, [step]);
+    setPrPreview({
+      repository: formatPrRepository(parsed),
+      pullNumber: parsed.pullNumber,
+    });
+
+    let cancelled = false;
+    apiFetch("/api/pr/preview", {
+      method: "POST",
+      body: JSON.stringify({ prUrl }),
+    })
+      .then(async (res) => {
+        const data = (await res.json().catch(() => ({}))) as {
+          repository?: string;
+          pullNumber?: number;
+          title?: string;
+        };
+        if (cancelled || !res.ok) return;
+        setPrPreview({
+          repository: data.repository ?? formatPrRepository(parsed),
+          pullNumber: data.pullNumber ?? parsed.pullNumber,
+          prTitle: data.title,
+        });
+      })
+      .catch(() => {
+        // URL 파싱 결과만 표시하고 제목은 스켈레톤 유지
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [step, prUrl]);
 
   const startGeneration = () => {
     if (!prUrl.trim()) return;
@@ -83,7 +117,7 @@ function ProblemSetNewContent() {
       .then((data) => {
         setLoadingStep(loadingPhases.length - 1);
         window.setTimeout(() => {
-          router.push(`/problem-sets/${data.problemSetId}`);
+          router.push("/my-problems");
         }, 500);
       })
       .catch((error) => {
@@ -98,41 +132,56 @@ function ProblemSetNewContent() {
   };
 
   useEffect(() => {
-    if (!authChecked || !initialPrUrl || autoStartedRef.current) return;
+    if (!isReady || !initialPrUrl || autoStartedRef.current) return;
     autoStartedRef.current = true;
     window.setTimeout(() => startGeneration(), 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authChecked, initialPrUrl]);
+  }, [isReady, initialPrUrl]);
 
-  const loadingDots = (loadingDotTick % 3) + 1;
+  const prGuidanceItems = getPrDiffGuidanceItems();
 
-  if (!authChecked) return null;
+  if (!isReady) return null;
 
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans selection:bg-accent/20">
       <SiteHeader activePath="/problem-sets/new" />
 
-      <main className="flex-grow flex items-center justify-center">
-        {step === "INPUT" && (
-          <div className="w-full max-w-[760px] mx-auto py-16 md:py-24 px-6">
-            <div className="text-center mb-10">
-              <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-text leading-tight mb-5">
-                나만의 문제 만들기
-              </h1>
-              <p className="text-base md:text-lg text-muted-text leading-relaxed">
-                분석하고 싶은 공개 GitHub Pull Request URL을 입력해주세요.
-                <br />
-                AI가 코드 변경의 핵심 의도를 짚는 3개의 문제를 자동 출제합니다.
-              </p>
-            </div>
+      <main className={`flex-grow ${step === "LOADING" ? "flex items-center" : ""}`}>
+        <div className={`${siteContentClass} ${step === "LOADING" ? "w-full py-12" : "pt-12 pb-12"}`}>
+          {step === "INPUT" && (
+            <>
+              <div className="mb-10">
+                <h1 className="mb-4 text-3xl md:text-4xl font-extrabold tracking-tight text-text">
+                  나만의 문제 만들기
+                </h1>
+                <p className="text-base md:text-lg text-muted-text leading-relaxed max-w-2xl whitespace-pre-line">
+                  {"분석하고 싶은 공개 GitHub Pull Request URL을 입력해주세요.\nAI가 코드 변경의 핵심 의도를 짚는 문제를 자동 출제합니다."}
+                </p>
+              </div>
 
-            <form
-              onSubmit={handleStart}
-              className="rounded-xl border border-lavender-tint bg-white p-2 shadow-default transition-all focus-within:border-accent focus-within:shadow-highlight focus-within:ring-2 focus-within:ring-accent/20 sm:flex sm:gap-2"
-            >
-              <div className="flex-1">
+              <section aria-labelledby="pr-guidance-heading" className="mb-10">
+                <div className="flex items-center gap-2 mb-3">
+                  <Info className="h-4 w-4 text-accent shrink-0" aria-hidden />
+                  <h2
+                    id="pr-guidance-heading"
+                    className="text-sm font-semibold text-muted-text"
+                  >
+                    PR 입력 전에 확인해 주세요
+                  </h2>
+                </div>
+                <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {prGuidanceItems.map((item) => (
+                    <li key={item.title} className="rounded-xl border border-lavender-tint bg-white px-5 py-4 shadow-default">
+                      <p className="text-sm font-semibold text-text mb-0.5">{item.title}</p>
+                      <p className="text-sm leading-relaxed text-muted-text">{item.detail}</p>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+
+              <form onSubmit={handleStart} className="flex gap-3">
                 <label htmlFor="pr-url" className="sr-only">
-                    GitHub Pull Request URL
+                  GitHub Pull Request URL
                 </label>
                 <input
                   id="pr-url"
@@ -141,45 +190,42 @@ function ProblemSetNewContent() {
                   placeholder="https://github.com/owner/repo/pull/123"
                   value={prUrl}
                   onChange={(event) => setPrUrl(event.target.value)}
-                  className="w-full border-none bg-transparent px-4 py-3.5 text-sm text-text outline-none placeholder:text-muted-text/60 md:text-base"
+                  className="flex-1 min-h-12 rounded-lg border border-lavender-tint bg-white px-4 text-sm text-text shadow-default outline-none placeholder:text-muted-text/50 transition-all focus:border-accent focus:shadow-highlight focus:ring-2 focus:ring-accent/20"
                 />
-              </div>
+                <button
+                  type="submit"
+                  disabled={!prUrl.trim()}
+                  className="inline-flex shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-primary hover:shadow-default active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span>문제 만들기</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </form>
+            </>
+          )}
 
-              <button
-                type="submit"
-                disabled={!prUrl.trim()}
-                className="mt-2 w-full cursor-pointer whitespace-nowrap rounded-lg bg-accent px-7 py-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-primary hover:shadow-default active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:mt-0 sm:w-auto md:text-base inline-flex items-center justify-center gap-2"
-              >
-                <span>문제 생성</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
-          </div>
-        )}
-
-        {step === "LOADING" && (
-          <div className="w-full max-w-[900px] mx-auto py-16 md:py-24 px-4 md:px-6">
+          {step === "LOADING" && (
             <div className="bg-white rounded-xl border border-lavender-tint shadow-default p-6 md:p-10">
               <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-text mb-3">
-                PR을 읽고 문제를 준비하고 있어요{".".repeat(loadingDots)}
+                PR을 읽고 문제를 준비하고 있어요
               </h2>
               <p className="text-base md:text-lg text-muted-text leading-relaxed max-w-2xl">
-                공개 PR의 변경 내용을 읽고, 코드 이해력을 확인할 객관식 3문항을 준비합니다.
+                공개 PR의 변경 내용을 읽고, 한 문항씩 풀 수 있는 객관식 문제를 준비합니다.
               </p>
 
-              <div className="mt-8 rounded-xl border border-lavender-tint bg-background/60 p-5">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-lg bg-accent/10 text-accent shrink-0">
-                    <GitPullRequest className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-mono text-xs font-bold text-accent truncate">{prUrl}</p>
-                    <p className="mt-1 text-sm font-bold text-text">
-                      생성이 완료되면 문제 풀이 화면으로 이동합니다.
-                    </p>
-                  </div>
-                </div>
+              {/* 인디케이터 프로그레스 바 */}
+              <div className="mt-5 h-0.5 w-full bg-lavender-tint rounded-full relative overflow-hidden">
+                <div className="absolute inset-y-0 rounded-full bg-accent animate-[indeterminate_1.6s_ease-in-out_infinite]" />
               </div>
+
+              {prPreview && (
+                <PrMetaBox
+                  className="mt-8"
+                  repository={prPreview.repository}
+                  pullNumber={prPreview.pullNumber}
+                  prTitle={prPreview.prTitle}
+                />
+              )}
 
               <div className="mt-10">
                 <div className="flex items-center" aria-label="문제 생성 진행 상태">
@@ -212,32 +258,32 @@ function ProblemSetNewContent() {
                   })}
                 </div>
 
-                <p className="mt-6 text-sm font-medium leading-relaxed text-muted-text">
+                <p className="mt-5 text-sm font-semibold text-text/70">
                   {loadingPhases[loadingStep]}
                 </p>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {step === "ERROR" && (
-          <div className="w-full max-w-xl mx-auto px-6">
-            <div className="bg-white rounded-xl border border-rose-200 shadow-default p-8 text-center">
-              <X className="w-8 h-8 text-rose-500 mx-auto mb-3" />
-              <p className="text-lg font-bold text-text mb-1">문제 생성에 실패했습니다.</p>
-              <p className="text-sm text-muted-text mb-6">
-                {errorMessage || "PR URL을 확인한 뒤 다시 시도해주세요."}
-              </p>
-              <button
-                type="button"
-                onClick={() => setStep("INPUT")}
-                className="bg-accent text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-primary hover:shadow-default transition-all active:scale-[0.98]"
-              >
-                다시 입력하기
-              </button>
+          {step === "ERROR" && (
+            <div className="mx-auto max-w-xl">
+              <div className="rounded-xl border border-rose-200 bg-white p-8 text-center shadow-default">
+                <X className="mx-auto mb-3 h-8 w-8 text-rose-500" />
+                <p className="mb-1 text-lg font-bold text-text">문제 생성에 실패했습니다.</p>
+                <p className="mb-6 text-sm text-muted-text">
+                  {errorMessage || "PR URL을 확인한 뒤 다시 시도해주세요."}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setStep("INPUT")}
+                  className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary hover:shadow-default active:scale-[0.98]"
+                >
+                  다시 입력하기
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </main>
 
       <SiteFooter />

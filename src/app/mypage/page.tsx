@@ -2,14 +2,27 @@
 
 import React, { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Camera, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, Trash2, User } from "lucide-react";
+import {
+  AlertTriangle,
+  Camera,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  LockKeyhole,
+  LogOut,
+  Mail,
+  Trash2,
+  User,
+} from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
-import { apiFetch, getSession, signOut, supabase, type AppSession } from "@/lib/supabase";
+import { apiFetch, supabase } from "@/lib/supabase";
+import { useAuth, useRequireAuth } from "@/components/auth-provider";
 
 export default function MyPage() {
   const router = useRouter();
-  const [session, setSession] = useState<AppSession | null>(null);
+  const { session, signOut, updateSession } = useAuth();
+  const { isReady } = useRequireAuth("/mypage");
 
   // 프로필 폼
   const [nicknameDraft, setNicknameDraft] = useState<string | null>(null);
@@ -29,21 +42,6 @@ export default function MyPage() {
   const [pwSaved, setPwSaved] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleteError, setDeleteError] = useState("");
-
-  useEffect(() => {
-    let cancelled = false;
-    getSession().then((current) => {
-      if (cancelled) return;
-      if (!current) {
-        router.replace("/auth/login?redirect=/mypage");
-        return;
-      }
-      setSession(current);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [router]);
 
   const nickname = nicknameDraft ?? session?.user.nickname ?? "";
   const avatarUrl = avatarUrlDraft === undefined ? session?.user.avatar_url ?? null : avatarUrlDraft;
@@ -81,6 +79,11 @@ export default function MyPage() {
     if (profileSaved) setProfileSaved(false);
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    router.push("/");
+  };
+
   const handleProfileSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const trimmed = nickname.trim();
@@ -112,17 +115,10 @@ export default function MyPage() {
         return res.json();
       })
       .then((data) => {
-        setSession((prev) =>
-          prev
-            ? {
-                user: {
-                  ...prev.user,
-                  nickname: data.profile.nickname,
-                  avatar_url: data.profile.avatarUrl,
-                },
-              }
-            : prev
-        );
+        updateSession({
+          nickname: data.profile.nickname,
+          avatar_url: data.profile.avatarUrl,
+        });
         setNicknameDraft(null);
         setAvatarUrlDraft(undefined);
         setProfileSaved(true);
@@ -198,7 +194,7 @@ export default function MyPage() {
       .catch((error) => setDeleteError(error instanceof Error ? error.message : "회원탈퇴를 처리하지 못했습니다."));
   };
 
-  if (!session) return null;
+  if (!isReady || !session) return null;
 
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans">
@@ -215,7 +211,8 @@ export default function MyPage() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start">
-            <aside className="rounded-xl border border-lavender-tint bg-white p-6 shadow-default lg:sticky lg:top-24">
+            <div className="flex flex-col gap-3 lg:sticky lg:top-24">
+            <aside className="rounded-xl border border-lavender-tint bg-white p-6 shadow-default">
               <div className="flex items-center gap-4 lg:flex-col lg:items-start">
                 {avatarUrl ? (
                   <img
@@ -244,6 +241,15 @@ export default function MyPage() {
                 </div>
               </div>
             </aside>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="inline-flex items-center gap-1.5 self-end rounded-lg px-3 py-2 text-sm font-medium text-muted-text transition-all duration-200 hover:bg-rose-50 hover:text-rose-500 active:scale-[0.97]"
+            >
+              <LogOut className="h-4 w-4" />
+              로그아웃
+            </button>
+            </div>
 
             <div className="space-y-6">
 

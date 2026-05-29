@@ -17,6 +17,11 @@
   --shadow-highlight: 0 8px 12px -2px rgba(83, 35, 230, 0.14), 0 2px 4px -1px rgba(0, 0, 0, 0.08);
 }
 
+html {
+  /* 스크롤 유무에 따라 헤더·본문이 좌우로 밀리지 않도록 스크롤바 자리 확보 */
+  scrollbar-gutter: stable;
+}
+
 :root {
   color-scheme: light;
   background-color: var(--color-background);
@@ -30,6 +35,46 @@
 body {
   margin: 0;
   font-family: var(--font-sans);
+}
+
+@layer base {
+  a[href]:not([aria-disabled="true"]),
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  label[for]:not([aria-disabled="true"]),
+  label:has(input[type="checkbox"]:not(:disabled)),
+  label:has(input[type="radio"]:not(:disabled)),
+  select:not(:disabled),
+  summary,
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="submit"]:not(:disabled),
+  input[type="button"]:not(:disabled),
+  input[type="reset"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  select:disabled,
+  input:disabled {
+    cursor: not-allowed;
+  }
+}
+
+/* Indeterminate progress bar */
+@keyframes indeterminate {
+  0% {
+    left: -60%;
+    width: 60%;
+  }
+  60% {
+    left: 100%;
+    width: 60%;
+  }
+  100% {
+    left: 100%;
+    width: 60%;
+  }
 }
 
 /* Entrance animations */

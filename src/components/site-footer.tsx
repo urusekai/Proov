@@ -17,16 +17,16 @@ const ProovLogo = ({ className = "w-6 h-6" }: { className?: string }) => (
 
 export function SiteFooter() {
   return (
-    <footer className="bg-background border-t border-lavender-tint/50 py-12 text-sm text-muted-text">
-      <div className="max-w-[1248px] mx-auto px-6 flex flex-col items-center gap-3">
+    <footer className="bg-background border-t border-lavender-tint/50 py-8 text-sm text-muted-text">
+      <div className="max-w-[1248px] mx-auto px-6 flex flex-col gap-2">
         <Link
           href="/"
-          className="flex items-center gap-2 text-primary font-bold text-[20px] leading-none hover:opacity-90 transition-opacity"
+          className="flex items-center gap-2 text-primary font-bold text-[20px] leading-none hover:opacity-90 transition-opacity w-fit"
         >
           <ProovLogo className="w-[18px] h-[18px] text-accent" />
           <span>Proov</span>
         </Link>
-        <p className="text-xs text-muted-text text-center">
+        <p className="text-xs text-muted-text">
           &copy; 2026 Proov. All rights reserved.
         </p>
       </div>

@@ -2,20 +2,21 @@ export type QuestionTag =
   | "CODE_BEHAVIOR"
   | "DATA_FLOW"
   | "STATE_CHANGE"
-  | "SIDE_EFFECT"
   | "ERROR_HANDLING"
   | "API_CONTRACT"
   | "TEST_INTENT"
-  | "LOGIC_ERROR"
   | "STRUCTURAL_CHANGE"
   | "CONFIG_CHANGE";
 
 export type ProblemSetDifficulty = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
+export type QuestionDifficulty = ProblemSetDifficulty;
 
 export type CuratedQuestion = {
   id: string;
   type: "MULTIPLE_CHOICE";
   tag: QuestionTag;
+  difficulty?: QuestionDifficulty;
+  title: string;
   question: string;
   options: { id: "A" | "B" | "C" | "D"; text: string }[];
   answer: "A" | "B" | "C" | "D";
@@ -28,7 +29,6 @@ export type CuratedProblemSet = {
   sourceType: "CURATED";
   visibility: "PUBLIC";
   displayTitle: string;
-  summary: string;
   difficulty: ProblemSetDifficulty;
   primaryTags: QuestionTag[];
   languageTags: string[];
@@ -52,9 +52,8 @@ export const curatedProblemSets = [
     sourceType: "CURATED",
     visibility: "PUBLIC",
     displayTitle: "IPv6 문자열 변환 규칙 읽기",
-    summary: "주소 변환 유틸리티와 회귀 테스트를 함께 읽고, 압축 조건이 결과 문자열에 미치는 영향을 파악합니다.",
     difficulty: "BEGINNER",
-    primaryTags: ["LOGIC_ERROR", "TEST_INTENT", "CODE_BEHAVIOR"],
+    primaryTags: ["CODE_BEHAVIOR", "TEST_INTENT"],
     languageTags: ["TypeScript"],
     frameworkTags: [],
     libraryTags: [],
@@ -71,7 +70,9 @@ export const curatedProblemSets = [
       {
         id: "hono-ipv6-string-formatting-q1",
         type: "MULTIPLE_CHOICE",
-        tag: "LOGIC_ERROR",
+        tag: "CODE_BEHAVIOR",
+        difficulty: "INTERMEDIATE",
+        title: "IPv6 0 구간 압축 조건",
         question: "변경된 조건문은 어떤 경우에만 IPv6 섹션 배열을 ':'로 치환하도록 제한합니까?",
         options: [
           { id: "A", text: "0으로 된 구간을 하나라도 찾은 경우" },
@@ -87,6 +88,8 @@ export const curatedProblemSets = [
         id: "hono-ipv6-string-formatting-q2",
         type: "MULTIPLE_CHOICE",
         tag: "TEST_INTENT",
+        difficulty: "BEGINNER",
+        title: "IPv6 압축 회귀 테스트 입력",
         question: "추가된 테스트 케이스 중 압축이 실제로 일어나야 한다고 기대하는 입력은 무엇입니까?",
         options: [
           { id: "A", text: "1:0:2:3:4:5:6:7" },
@@ -102,6 +105,8 @@ export const curatedProblemSets = [
         id: "hono-ipv6-string-formatting-q3",
         type: "MULTIPLE_CHOICE",
         tag: "CODE_BEHAVIOR",
+        difficulty: "BEGINNER",
+        title: "단일 0 구간 변환 결과",
         question: "이번 변경 이후 `1:2:3:4:5:6:7:0`을 변환하면 테스트가 기대하는 출력은 무엇입니까?",
         options: [
           { id: "A", text: "1:2:3:4:5:6:7:0" },
@@ -120,9 +125,8 @@ export const curatedProblemSets = [
     sourceType: "CURATED",
     visibility: "PUBLIC",
     displayTitle: "정적 파일 경로 정규화 흐름 이해하기",
-    summary: "파일 경로 유틸리티가 여러 구분자와 root 옵션을 처리하는 방식을 테스트와 함께 확인합니다.",
     difficulty: "BEGINNER",
-    primaryTags: ["LOGIC_ERROR", "DATA_FLOW", "TEST_INTENT"],
+    primaryTags: ["CODE_BEHAVIOR", "DATA_FLOW", "TEST_INTENT"],
     languageTags: ["TypeScript"],
     frameworkTags: ["Hono"],
     libraryTags: [],
@@ -139,7 +143,9 @@ export const curatedProblemSets = [
       {
         id: "hono-static-path-normalization-q1",
         type: "MULTIPLE_CHOICE",
-        tag: "LOGIC_ERROR",
+        tag: "CODE_BEHAVIOR",
+        difficulty: "INTERMEDIATE",
+        title: "정적 파일명 정규화 정규식",
         question: "파일명 정규화 코드에서 정규식 변경의 핵심 효과는 무엇입니까?",
         options: [
           { id: "A", text: "선행 './' 또는 '/' 제거를 중단한다" },
@@ -155,6 +161,8 @@ export const curatedProblemSets = [
         id: "hono-static-path-normalization-q2",
         type: "MULTIPLE_CHOICE",
         tag: "TEST_INTENT",
+        difficulty: "BEGINNER",
+        title: "다중 세그먼트 경로 테스트 기대값",
         question: "새 테스트에서 `root: 'assets'`와 함께 다중 세그먼트 경로를 넘겼을 때 기대하는 결과는 무엇입니까?",
         options: [
           { id: "A", text: "foo/bar/baz.txt" },
@@ -170,6 +178,8 @@ export const curatedProblemSets = [
         id: "hono-static-path-normalization-q3",
         type: "MULTIPLE_CHOICE",
         tag: "DATA_FLOW",
+        difficulty: "INTERMEDIATE",
+        title: "파일명 백슬래시 치환 순서",
         question: "변경된 함수에서 filename에 대한 백슬래시 치환은 어떤 처리 이후에 수행됩니까?",
         options: [
           { id: "A", text: "root의 마지막 슬래시를 제거한 이후" },
@@ -188,7 +198,6 @@ export const curatedProblemSets = [
     sourceType: "CURATED",
     visibility: "PUBLIC",
     displayTitle: "TypeScript 미들웨어 선언 구조 정리",
-    summary: "런타임 로직이 아닌 타입 선언 블록 변경이 모듈 구조에 어떤 의미를 갖는지 읽습니다.",
     difficulty: "BEGINNER",
     primaryTags: ["STRUCTURAL_CHANGE", "API_CONTRACT", "CODE_BEHAVIOR"],
     languageTags: ["TypeScript"],
@@ -208,6 +217,8 @@ export const curatedProblemSets = [
         id: "zustand-devtools-type-declaration-q1",
         type: "MULTIPLE_CHOICE",
         tag: "STRUCTURAL_CHANGE",
+        difficulty: "BEGINNER",
+        title: "devtools 타입 선언 제거 범위",
         question: "이번 변경에서 `src/middleware/devtools.ts`에서 제거된 블록의 성격으로 가장 알맞은 것은 무엇입니까?",
         options: [
           { id: "A", text: "Redux DevTools와 연결하는 런타임 함수" },
@@ -223,6 +234,8 @@ export const curatedProblemSets = [
         id: "zustand-devtools-type-declaration-q2",
         type: "MULTIPLE_CHOICE",
         tag: "API_CONTRACT",
+        difficulty: "BEGINNER",
+        title: "StoreMutators mutator key 연결",
         question: "삭제된 `StoreMutators` 선언이 연결하던 mutator key는 무엇입니까?",
         options: [
           { id: "A", text: "zustand/persist" },
@@ -238,6 +251,8 @@ export const curatedProblemSets = [
         id: "zustand-devtools-type-declaration-q3",
         type: "MULTIPLE_CHOICE",
         tag: "CODE_BEHAVIOR",
+        difficulty: "INTERMEDIATE",
+        title: "타입 선언 변경의 런타임 영향",
         question: "이 diff만 기준으로 볼 때, 변경이 직접 수정한 런타임 동작은 무엇입니까?",
         options: [
           { id: "A", text: "상태 업데이트 시 devtools 메시지를 두 번 보내지 않도록 했다" },
@@ -256,7 +271,6 @@ export const curatedProblemSets = [
     sourceType: "CURATED",
     visibility: "PUBLIC",
     displayTitle: "요청 초기화 훅의 옵션 복제 흐름",
-    summary: "hook에서 옵션을 직접 바꿀 때 다음 요청으로 변경이 새지 않도록 복제하는 방식을 분석합니다.",
     difficulty: "INTERMEDIATE",
     primaryTags: ["STATE_CHANGE", "DATA_FLOW", "TEST_INTENT"],
     languageTags: ["TypeScript"],
@@ -276,6 +290,8 @@ export const curatedProblemSets = [
         id: "ky-init-hook-search-params-q1",
         type: "MULTIPLE_CHOICE",
         tag: "DATA_FLOW",
+        difficulty: "INTERMEDIATE",
+        title: "init hook searchParams 복제 방식",
         question: "새로 추가된 `cloneSearchParametersForInitHook`는 searchParams가 배열일 때 어떤 방식으로 값을 복제합니까?",
         options: [
           { id: "A", text: "원본 배열을 그대로 반환한다" },
@@ -291,6 +307,8 @@ export const curatedProblemSets = [
         id: "ky-init-hook-search-params-q2",
         type: "MULTIPLE_CHOICE",
         tag: "STATE_CHANGE",
+        difficulty: "ADVANCED",
+        title: "init hook 배열 mutation 격리",
         question: "추가된 테스트에서 init hook이 첫 번째 tuple 값을 바꾼 뒤, 두 요청에서 관찰해야 하는 초기값 배열은 무엇입니까?",
         options: [
           { id: "A", text: "['seed', 'seed']" },
@@ -306,6 +324,8 @@ export const curatedProblemSets = [
         id: "ky-init-hook-search-params-q3",
         type: "MULTIPLE_CHOICE",
         tag: "TEST_INTENT",
+        difficulty: "INTERMEDIATE",
+        title: "fetch URL requestId 테스트 흐름",
         question: "새 테스트에서 실제 fetch로 전달된 URL의 `requestId` 값들은 어떤 순서로 기록되어야 합니까?",
         options: [
           { id: "A", text: "['seed', 'seed']" },
@@ -324,7 +344,6 @@ export const curatedProblemSets = [
     sourceType: "CURATED",
     visibility: "PUBLIC",
     displayTitle: "JSON 파싱 콜백의 컨텍스트 전달",
-    summary: "응답 파싱 경로 여러 곳에서 사용자 정의 파서가 어떤 요청/응답 정보를 받는지 추적합니다.",
     difficulty: "ADVANCED",
     primaryTags: ["API_CONTRACT", "DATA_FLOW", "ERROR_HANDLING"],
     languageTags: ["TypeScript"],
@@ -344,6 +363,8 @@ export const curatedProblemSets = [
         id: "ky-json-parser-context-q1",
         type: "MULTIPLE_CHOICE",
         tag: "API_CONTRACT",
+        difficulty: "BEGINNER",
+        title: "parseJson 콜백 시그니처 변경",
         question: "`parseJson` 옵션의 타입 시그니처는 이번 변경 이후 어떤 두 번째 인자를 받도록 바뀌었습니까?",
         options: [
           { id: "A", text: "{url: string; status: number}" },
@@ -359,6 +380,8 @@ export const curatedProblemSets = [
         id: "ky-json-parser-context-q2",
         type: "MULTIPLE_CHOICE",
         tag: "DATA_FLOW",
+        difficulty: "INTERMEDIATE",
+        title: "json shortcut의 request 전달",
         question: "`.json()` shortcut 경로에서 사용자 정의 `parseJson`을 호출할 때 전달되는 request 값은 무엇입니까?",
         options: [
           { id: "A", text: "새로 생성한 빈 Request" },
@@ -374,6 +397,8 @@ export const curatedProblemSets = [
         id: "ky-json-parser-context-q3",
         type: "MULTIPLE_CHOICE",
         tag: "ERROR_HANDLING",
+        difficulty: "ADVANCED",
+        title: "retry 응답 status 전달 흐름",
         question: "추가된 retry 관련 테스트에서 `parseJson`이 기록하는 response status 순서는 무엇입니까?",
         options: [
           { id: "A", text: "[200]" },
@@ -392,9 +417,8 @@ export const curatedProblemSets = [
     sourceType: "CURATED",
     visibility: "PUBLIC",
     displayTitle: "폼 상태 알림의 범위 구분",
-    summary: "단일 필드 변경 이후 전체 값 갱신 알림이 어떤 메타데이터를 가져야 하는지 확인합니다.",
     difficulty: "INTERMEDIATE",
-    primaryTags: ["STATE_CHANGE", "SIDE_EFFECT", "TEST_INTENT"],
+    primaryTags: ["STATE_CHANGE", "TEST_INTENT"],
     languageTags: ["TypeScript", "React"],
     frameworkTags: ["React"],
     libraryTags: ["React Hook Form"],
@@ -412,6 +436,8 @@ export const curatedProblemSets = [
         id: "react-hook-form-bulk-value-notification-q1",
         type: "MULTIPLE_CHOICE",
         tag: "STATE_CHANGE",
+        difficulty: "INTERMEDIATE",
+        title: "setValues state notification 메타데이터",
         question: "`setValues`의 마지막 state notification에서 이번 변경이 명시적으로 undefined로 설정하는 필드는 무엇입니까?",
         options: [
           { id: "A", text: "name과 type" },
@@ -427,6 +453,8 @@ export const curatedProblemSets = [
         id: "react-hook-form-bulk-value-notification-q2",
         type: "MULTIPLE_CHOICE",
         tag: "TEST_INTENT",
+        difficulty: "INTERMEDIATE",
+        title: "stale metadata 회귀 테스트 준비",
         question: "추가된 테스트가 stale 메타데이터 상황을 만들기 위해 먼저 수행하는 동작은 무엇입니까?",
         options: [
           { id: "A", text: "폼을 unmount한 뒤 다시 mount한다" },
@@ -441,7 +469,9 @@ export const curatedProblemSets = [
       {
         id: "react-hook-form-bulk-value-notification-q3",
         type: "MULTIPLE_CHOICE",
-        tag: "SIDE_EFFECT",
+        tag: "STATE_CHANGE",
+        difficulty: "ADVANCED",
+        title: "values notification side effect 검증",
         question: "회귀 테스트에서 마지막 values notification의 `values`로 기대하는 객체는 무엇입니까?",
         options: [
           { id: "A", text: "{ a: 'changed', b: '2' }" },
@@ -460,9 +490,8 @@ export const curatedProblemSets = [
     sourceType: "CURATED",
     visibility: "PUBLIC",
     displayTitle: "IPv6 CIDR 검증과 JSON Schema 패턴",
-    summary: "런타임 검증과 생성된 JSON Schema 정규식이 같은 입력을 허용하는지 비교합니다.",
     difficulty: "INTERMEDIATE",
-    primaryTags: ["API_CONTRACT", "TEST_INTENT", "LOGIC_ERROR"],
+    primaryTags: ["API_CONTRACT", "TEST_INTENT", "CODE_BEHAVIOR"],
     languageTags: ["TypeScript"],
     frameworkTags: [],
     libraryTags: ["Zod"],
@@ -480,6 +509,8 @@ export const curatedProblemSets = [
         id: "zod-cidrv6-schema-pattern-q1",
         type: "MULTIPLE_CHOICE",
         tag: "TEST_INTENT",
+        difficulty: "INTERMEDIATE",
+        title: "CIDRv6 JSON Schema pattern 검증",
         question: "새 테스트가 `z.toJSONSchema(cidrV6).pattern`으로 만든 RegExp에 대해 확인하는 동작은 무엇입니까?",
         options: [
           { id: "A", text: "유효한 CIDR v6 예시들이 pattern에도 매칭되는지 확인한다" },
@@ -495,6 +526,8 @@ export const curatedProblemSets = [
         id: "zod-cidrv6-schema-pattern-q2",
         type: "MULTIPLE_CHOICE",
         tag: "API_CONTRACT",
+        difficulty: "BEGINNER",
+        title: "CIDRv6 pattern 매칭 테스트 입력",
         question: "추가된 테스트 입력 중 JSON Schema pattern 매칭까지 확인하는 예시는 무엇입니까?",
         options: [
           { id: "A", text: "2001:db8::" },
@@ -509,7 +542,9 @@ export const curatedProblemSets = [
       {
         id: "zod-cidrv6-schema-pattern-q3",
         type: "MULTIPLE_CHOICE",
-        tag: "LOGIC_ERROR",
+        tag: "CODE_BEHAVIOR",
+        difficulty: "INTERMEDIATE",
+        title: "CIDRv6 core regex 변경 방향",
         question: "core regex 변경의 방향으로 가장 알맞은 설명은 무엇입니까?",
         options: [
           { id: "A", text: "CIDR v6 정규식을 제거하고 항상 통과시킨다" },
@@ -528,7 +563,6 @@ export const curatedProblemSets = [
     sourceType: "CURATED",
     visibility: "PUBLIC",
     displayTitle: "객체 파싱에서 fallback 값 처리",
-    summary: "누락된 객체 키와 optional wrapper가 catch/default 계열 스키마와 만날 때의 결과를 추적합니다.",
     difficulty: "ADVANCED",
     primaryTags: ["STATE_CHANGE", "ERROR_HANDLING", "API_CONTRACT"],
     languageTags: ["TypeScript"],
@@ -552,6 +586,8 @@ export const curatedProblemSets = [
         id: "zod-object-fallback-semantics-q1",
         type: "MULTIPLE_CHOICE",
         tag: "API_CONTRACT",
+        difficulty: "ADVANCED",
+        title: "Zod catch optin 처리 방식",
         question: "`$ZodCatch` 초기화에서 optin 처리 방식은 어떻게 바뀌었습니까?",
         options: [
           { id: "A", text: "innerType의 optin을 lazy로 그대로 따른다" },
@@ -567,6 +603,8 @@ export const curatedProblemSets = [
         id: "zod-object-fallback-semantics-q2",
         type: "MULTIPLE_CHOICE",
         tag: "STATE_CHANGE",
+        difficulty: "INTERMEDIATE",
+        title: "caught 플래그 상태 전환",
         question: "새로 추가된 `caught` 플래그는 어느 상황에서 true로 설정됩니까?",
         options: [
           { id: "A", text: "optional이 undefined를 즉시 반환할 때" },
@@ -582,6 +620,8 @@ export const curatedProblemSets = [
         id: "zod-object-fallback-semantics-q3",
         type: "MULTIPLE_CHOICE",
         tag: "ERROR_HANDLING",
+        difficulty: "ADVANCED",
+        title: "optional fallback 반환 조건",
         question: "변경된 `handleOptionalResult`가 undefined 입력에서 undefined를 반환하는 조건은 무엇입니까?",
         options: [
           { id: "A", text: "input이 undefined이고 issues가 있거나 caught가 true인 경우" },
@@ -600,9 +640,8 @@ export const curatedProblemSets = [
     sourceType: "CURATED",
     visibility: "PUBLIC",
     displayTitle: "응답 trailer 완료 처리 흐름",
-    summary: "callback과 promise가 함께 쓰이는 비동기 완료 경로에서 첫 완료만 반영되는지 확인합니다.",
     difficulty: "INTERMEDIATE",
-    primaryTags: ["SIDE_EFFECT", "ERROR_HANDLING", "TEST_INTENT"],
+    primaryTags: ["STATE_CHANGE", "ERROR_HANDLING", "TEST_INTENT"],
     languageTags: ["JavaScript"],
     frameworkTags: ["Fastify"],
     libraryTags: [],
@@ -619,7 +658,9 @@ export const curatedProblemSets = [
       {
         id: "fastify-reply-trailer-completion-q1",
         type: "MULTIPLE_CHOICE",
-        tag: "SIDE_EFFECT",
+        tag: "STATE_CHANGE",
+        difficulty: "ADVANCED",
+        title: "trailer callback 중복 완료 방지",
         question: "`sendTrailer` 내부 callback에 추가된 `cbAlreadyCalled` 플래그의 역할은 무엇입니까?",
         options: [
           { id: "A", text: "첫 호출 이후 같은 callback의 추가 호출을 무시한다" },
@@ -635,6 +676,8 @@ export const curatedProblemSets = [
         id: "fastify-reply-trailer-completion-q2",
         type: "MULTIPLE_CHOICE",
         tag: "TEST_INTENT",
+        difficulty: "INTERMEDIATE",
+        title: "Mixed trailer handler 완료 경로",
         question: "추가된 테스트의 `Mixed` trailer handler는 어떤 두 완료 경로를 함께 사용합니까?",
         options: [
           { id: "A", text: "callback으로 'correct'를 전달하고 Promise로 'corrupted'를 반환한다" },
@@ -650,6 +693,8 @@ export const curatedProblemSets = [
         id: "fastify-reply-trailer-completion-q3",
         type: "MULTIPLE_CHOICE",
         tag: "ERROR_HANDLING",
+        difficulty: "BEGINNER",
+        title: "응답 trailers 기대값 검증",
         question: "새 테스트에서 응답 검증 시 `res.trailers.mixed`의 기대값은 무엇입니까?",
         options: [
           { id: "A", text: "correct" },
@@ -668,7 +713,6 @@ export const curatedProblemSets = [
     sourceType: "CURATED",
     visibility: "PUBLIC",
     displayTitle: "Content-Type 파싱 객체 재사용",
-    summary: "요청 처리와 request getter가 Content-Type 객체를 생성하고 재사용하는 경로를 비교합니다.",
     difficulty: "INTERMEDIATE",
     primaryTags: ["STRUCTURAL_CHANGE", "DATA_FLOW", "STATE_CHANGE"],
     languageTags: ["JavaScript"],
@@ -688,6 +732,8 @@ export const curatedProblemSets = [
         id: "fastify-content-type-parser-cache-q1",
         type: "MULTIPLE_CHOICE",
         tag: "STRUCTURAL_CHANGE",
+        difficulty: "BEGINNER",
+        title: "ContentTypeParser 캐시 필드 초기화",
         question: "`ContentTypeParser` 생성자에 새로 추가된 캐시 필드는 무엇으로 초기화됩니까?",
         options: [
           { id: "A", text: "new Fifo(100)" },
@@ -703,6 +749,8 @@ export const curatedProblemSets = [
         id: "fastify-content-type-parser-cache-q2",
         type: "MULTIPLE_CHOICE",
         tag: "DATA_FLOW",
+        difficulty: "INTERMEDIATE",
+        title: "raw Content-Type 파싱 흐름",
         question: "`getContentType(raw)`의 처리 흐름으로 가장 알맞은 것은 무엇입니까?",
         options: [
           { id: "A", text: "항상 새 ContentType을 만든 뒤 캐시를 비운다" },
@@ -718,6 +766,8 @@ export const curatedProblemSets = [
         id: "fastify-content-type-parser-cache-q3",
         type: "MULTIPLE_CHOICE",
         tag: "STATE_CHANGE",
+        difficulty: "INTERMEDIATE",
+        title: "request mediaType 캐시 조회",
         question: "변경 후 request의 `mediaType` getter는 ContentType 객체를 어디에서 가져옵니까?",
         options: [
           { id: "A", text: "직접 `new ContentType(this.headers['content-type'])`를 호출한다" },
@@ -736,7 +786,6 @@ export const curatedProblemSets = [
     sourceType: "CURATED",
     visibility: "PUBLIC",
     displayTitle: "로그아웃 이후 사용자 상태 초기화 흐름 읽기",
-    summary: "라우터 가드와 로그아웃 처리에서 사용자 관련 스토어와 브라우저 저장값을 정리하는 흐름을 추적합니다.",
     difficulty: "INTERMEDIATE",
     primaryTags: ["STATE_CHANGE", "DATA_FLOW", "CODE_BEHAVIOR"],
     languageTags: ["JavaScript", "Vue"],
@@ -764,6 +813,8 @@ export const curatedProblemSets = [
         id: "tone-logout-user-state-reset-q1",
         type: "MULTIPLE_CHOICE",
         tag: "STATE_CHANGE",
+        difficulty: "INTERMEDIATE",
+        title: "로그아웃 사용자 상태 초기화 범위",
         question: "새로 추가된 `resetAllUserState`가 직접 초기화하거나 제거하는 대상으로 가장 알맞은 것은 무엇입니까?",
         options: [
           { id: "A", text: "auth, dailySpectrum, player 등 사용자 스토어와 sessionStorage/localStorage 일부 키" },
@@ -779,6 +830,8 @@ export const curatedProblemSets = [
         id: "tone-logout-user-state-reset-q2",
         type: "MULTIPLE_CHOICE",
         tag: "DATA_FLOW",
+        difficulty: "ADVANCED",
+        title: "세션 만료 시 리다이렉트 전 정리",
         question: "라우터 가드 변경 후 서버 세션이 없다고 판단되면 로그인 리다이렉트 전에 어떤 처리가 추가로 수행됩니까?",
         options: [
           { id: "A", text: "현재 route의 query를 모두 제거한다" },
@@ -794,6 +847,8 @@ export const curatedProblemSets = [
         id: "tone-logout-user-state-reset-q3",
         type: "MULTIPLE_CHOICE",
         tag: "CODE_BEHAVIOR",
+        difficulty: "INTERMEDIATE",
+        title: "toast store reset 동작",
         question: "`toast` 스토어에 추가된 `reset()`은 예약된 표시 처리와 현재 메시지를 어떻게 다룹니까?",
         options: [
           { id: "A", text: "예약된 animationFrame이 있으면 취소하고 open을 false, message를 빈 문자열로 바꾼다" },
@@ -812,7 +867,6 @@ export const curatedProblemSets = [
     sourceType: "CURATED",
     visibility: "PUBLIC",
     displayTitle: "한 곡 반복 재생 상태 흐름 이해하기",
-    summary: "플레이어 스토어와 오디오 이벤트 변경을 함께 읽고 반복 재생 시 현재 트랙 상태를 다시 시작하는 흐름을 파악합니다.",
     difficulty: "INTERMEDIATE",
     primaryTags: ["STATE_CHANGE", "CODE_BEHAVIOR", "DATA_FLOW"],
     languageTags: ["JavaScript", "Vue"],
@@ -836,6 +890,8 @@ export const curatedProblemSets = [
         id: "tone-repeat-one-playback-reset-q1",
         type: "MULTIPLE_CHOICE",
         tag: "STATE_CHANGE",
+        difficulty: "INTERMEDIATE",
+        title: "현재 트랙 재생 상태 리셋",
         question: "`replayCurrentTrack()`가 현재 트랙을 다시 재생하기 위해 직접 변경하는 상태 조합은 무엇입니까?",
         options: [
           { id: "A", text: "`current_time`과 `seek_request_time`을 0으로 두고 `is_playing`을 true로 설정한다" },
@@ -851,6 +907,8 @@ export const curatedProblemSets = [
         id: "tone-repeat-one-playback-reset-q2",
         type: "MULTIPLE_CHOICE",
         tag: "CODE_BEHAVIOR",
+        difficulty: "INTERMEDIATE",
+        title: "repeat-one 다음/이전 재생 흐름",
         question: "변경 후 `is_repeat_one` 상태에서 다음/이전 재생 흐름이 선택하는 동작은 무엇입니까?",
         options: [
           { id: "A", text: "현재 index를 다시 `playTrackAt`으로 선택한다" },
@@ -866,6 +924,8 @@ export const curatedProblemSets = [
         id: "tone-repeat-one-playback-reset-q3",
         type: "MULTIPLE_CHOICE",
         tag: "DATA_FLOW",
+        difficulty: "BEGINNER",
+        title: "트랙 길이 정보 전달 필드",
         question: "이번 변경에서 트랙 길이 정보가 플레이어까지 전달되도록 추가된 필드는 무엇입니까?",
         options: [
           { id: "A", text: "`duration_ms`" },
@@ -888,7 +948,6 @@ export const curatedProblemSets = [
     sourceType: "CURATED",
     visibility: "PUBLIC",
     displayTitle: "프로필 색상 상태 공유 흐름 읽기",
-    summary: "Header와 MainPlayer가 공통 UI 스토어를 통해 프로필 색상을 읽고 Calendar에서 선택한 색상을 반영하는 흐름을 확인합니다.",
     difficulty: "INTERMEDIATE",
     primaryTags: ["STATE_CHANGE", "DATA_FLOW", "STRUCTURAL_CHANGE"],
     languageTags: ["JavaScript", "Vue"],
@@ -913,6 +972,8 @@ export const curatedProblemSets = [
         id: "tone-profile-avatar-color-store-q1",
         type: "MULTIPLE_CHOICE",
         tag: "STRUCTURAL_CHANGE",
+        difficulty: "INTERMEDIATE",
+        title: "프로필 색상 공유 구조",
         question: "Header와 MainPlayer에서 프로필 색상을 읽는 방식은 어떤 구조로 바뀌었습니까?",
         options: [
           { id: "A", text: "각 컴포넌트가 직접 localStorage를 파싱하는 방식에서 `useUiStore()`의 `avatarColor`를 읽는 방식" },
@@ -932,6 +993,8 @@ export const curatedProblemSets = [
         id: "tone-profile-avatar-color-store-q2",
         type: "MULTIPLE_CHOICE",
         tag: "STATE_CHANGE",
+        difficulty: "INTERMEDIATE",
+        title: "avatar color 저장 side effect",
         question: "`uiStore.setAvatarColor(color)`가 색상을 저장할 때 수행하는 동작으로 가장 알맞은 것은 무엇입니까?",
         options: [
           { id: "A", text: "빈 문자열이면 그대로 저장하고 기본 색상은 사용하지 않는다" },
@@ -947,6 +1010,8 @@ export const curatedProblemSets = [
         id: "tone-profile-avatar-color-store-q3",
         type: "MULTIPLE_CHOICE",
         tag: "DATA_FLOW",
+        difficulty: "ADVANCED",
+        title: "Calendar 프로필 색상 반영 경로",
         question: "Calendar 화면의 프로필 설정 버튼은 선택된 날짜 색상을 어떤 경로로 반영합니까?",
         options: [
           { id: "A", text: "`uiStore.setAvatarColor(selectedData.color)`를 호출한다" },
@@ -965,9 +1030,8 @@ export const curatedProblemSets = [
     sourceType: "CURATED",
     visibility: "PUBLIC",
     displayTitle: "회원 탈퇴 요청과 세션 정리 흐름 이해하기",
-    summary: "회원 탈퇴 API와 MyPage 처리 흐름이 계정 삭제, 세션 종료, 사용자 피드백을 어떻게 연결하는지 살펴봅니다.",
     difficulty: "INTERMEDIATE",
-    primaryTags: ["ERROR_HANDLING", "SIDE_EFFECT", "DATA_FLOW"],
+    primaryTags: ["ERROR_HANDLING", "STATE_CHANGE", "DATA_FLOW"],
     languageTags: ["PHP", "JavaScript", "Vue"],
     frameworkTags: ["Vue"],
     libraryTags: [],
@@ -989,6 +1053,8 @@ export const curatedProblemSets = [
         id: "tone-account-withdraw-session-cleanup-q1",
         type: "MULTIPLE_CHOICE",
         tag: "ERROR_HANDLING",
+        difficulty: "BEGINNER",
+        title: "회원탈퇴 세션 식별 오류 응답",
         question: "`withdraw.php`에서 로그인한 사용자 식별값이 세션에 없을 때 반환하는 응답은 무엇입니까?",
         options: [
           { id: "A", text: "401 상태와 '로그인이 필요합니다.' 메시지" },
@@ -1003,7 +1069,9 @@ export const curatedProblemSets = [
       {
         id: "tone-account-withdraw-session-cleanup-q2",
         type: "MULTIPLE_CHOICE",
-        tag: "SIDE_EFFECT",
+        tag: "STATE_CHANGE",
+        difficulty: "INTERMEDIATE",
+        title: "회원 삭제 후 세션 정리",
         question: "회원 삭제가 성공한 뒤 백엔드가 수행하는 세션 관련 처리는 무엇입니까?",
         options: [
           { id: "A", text: "세션 배열을 비우고 세션 쿠키를 만료시킨 뒤 `session_destroy()`를 호출한다" },
@@ -1019,6 +1087,8 @@ export const curatedProblemSets = [
         id: "tone-account-withdraw-session-cleanup-q3",
         type: "MULTIPLE_CHOICE",
         tag: "DATA_FLOW",
+        difficulty: "INTERMEDIATE",
+        title: "탈퇴 성공 후 프론트 후속 처리",
         question: "프론트의 탈퇴 확인 흐름에서 `withdrawMyAccount()` 성공 후 이어지는 처리는 무엇입니까?",
         options: [
           { id: "A", text: "탈퇴 모달을 닫고 완료 알림을 표시한 뒤 로그인 화면으로 이동하는 정리 함수를 호출한다" },
@@ -1037,9 +1107,8 @@ export const curatedProblemSets = [
     sourceType: "CURATED",
     visibility: "PUBLIC",
     displayTitle: "로그아웃 요청과 클라이언트 상태 정리 흐름",
-    summary: "서버 로그아웃 API와 마이페이지의 로컬 인증 정보 정리가 어떤 순서로 연결되는지 읽습니다.",
     difficulty: "BEGINNER",
-    primaryTags: ["ERROR_HANDLING", "SIDE_EFFECT", "DATA_FLOW"],
+    primaryTags: ["ERROR_HANDLING", "STATE_CHANGE", "DATA_FLOW"],
     languageTags: ["PHP", "JavaScript", "Vue"],
     frameworkTags: ["Vue"],
     libraryTags: [],
@@ -1061,6 +1130,8 @@ export const curatedProblemSets = [
         id: "tone-my-page-logout-flow-q1",
         type: "MULTIPLE_CHOICE",
         tag: "ERROR_HANDLING",
+        difficulty: "BEGINNER",
+        title: "logout API 요청 메서드 검증",
         question: "백엔드 `logout.php`는 POST가 아닌 요청에 대해 어떻게 응답합니까?",
         options: [
           { id: "A", text: "405 상태와 'POST 요청만 허용됩니다.' 메시지를 반환한다" },
@@ -1076,6 +1147,8 @@ export const curatedProblemSets = [
         id: "tone-my-page-logout-flow-q2",
         type: "MULTIPLE_CHOICE",
         tag: "DATA_FLOW",
+        difficulty: "BEGINNER",
+        title: "클라이언트 logoutUser 요청 방식",
         question: "`logoutUser()`는 실제 API 모드에서 어떤 요청을 보냅니까?",
         options: [
           { id: "A", text: "`/api/auth/logout.php`에 POST 요청을 보낸다" },
@@ -1090,7 +1163,9 @@ export const curatedProblemSets = [
       {
         id: "tone-my-page-logout-flow-q3",
         type: "MULTIPLE_CHOICE",
-        tag: "SIDE_EFFECT",
+        tag: "STATE_CHANGE",
+        difficulty: "INTERMEDIATE",
+        title: "서버 로그아웃 실패 후 상태 보장",
         question: "마이페이지의 `logout` 함수가 서버 로그아웃 실패에도 보장하는 동작은 무엇입니까?",
         options: [
           { id: "A", text: "`finally`에서 로컬 인증 정보를 정리하고 `/login`으로 이동한다" },
@@ -1109,7 +1184,6 @@ export const curatedProblemSets = [
     sourceType: "CURATED",
     visibility: "PUBLIC",
     displayTitle: "카테고리 카드 응답 매핑 단순화 읽기",
-    summary: "카테고리 상세 화면에서 API 응답 필드를 카드 표시 데이터로 변환하는 과정을 단순화한 흐름을 확인합니다.",
     difficulty: "BEGINNER",
     primaryTags: ["API_CONTRACT", "DATA_FLOW", "STRUCTURAL_CHANGE"],
     languageTags: ["JavaScript", "Vue"],
@@ -1129,6 +1203,8 @@ export const curatedProblemSets = [
         id: "tone-category-card-response-mapping-q1",
         type: "MULTIPLE_CHOICE",
         tag: "API_CONTRACT",
+        difficulty: "BEGINNER",
+        title: "카테고리 카드 필드 매핑",
         question: "변경된 `mapCard(item)`이 카드 색상과 제목을 읽는 필드 조합은 무엇입니까?",
         options: [
           { id: "A", text: "`color_hex`와 `color_name`" },
@@ -1144,6 +1220,8 @@ export const curatedProblemSets = [
         id: "tone-category-card-response-mapping-q2",
         type: "MULTIPLE_CHOICE",
         tag: "DATA_FLOW",
+        difficulty: "INTERMEDIATE",
+        title: "미리보기 곡 목록 매핑",
         question: "`mapPreviewSongs(songs)`가 입력값을 카드의 미리보기 곡 목록으로 바꾸는 방식은 무엇입니까?",
         options: [
           { id: "A", text: "배열이 아니면 빈 배열을 반환하고, artist/title을 조합한 문자열을 최대 3개 반환한다" },
@@ -1159,6 +1237,8 @@ export const curatedProblemSets = [
         id: "tone-category-card-response-mapping-q3",
         type: "MULTIPLE_CHOICE",
         tag: "STRUCTURAL_CHANGE",
+        difficulty: "INTERMEDIATE",
+        title: "카드 응답 정규화 흐름 제거",
         question: "이번 변경에서 제거된 정규화 흐름의 성격으로 가장 알맞은 것은 무엇입니까?",
         options: [
           { id: "A", text: "여러 후보 필드명과 문자열/객체 입력을 폭넓게 받아들이던 fallback 매핑" },
@@ -1177,7 +1257,6 @@ export const curatedProblemSets = [
     sourceType: "CURATED",
     visibility: "PUBLIC",
     displayTitle: "소셜 로그인 계정 연결 흐름 이해하기",
-    summary: "소셜 로그인에서 이메일과 provider 식별자를 기준으로 기존 사용자와 provider 메타데이터를 연결하는 흐름을 추적합니다.",
     difficulty: "ADVANCED",
     primaryTags: ["DATA_FLOW", "STATE_CHANGE", "ERROR_HANDLING"],
     languageTags: ["JavaScript"],
@@ -1201,6 +1280,8 @@ export const curatedProblemSets = [
         id: "goreon-social-login-account-linking-q1",
         type: "MULTIPLE_CHOICE",
         tag: "DATA_FLOW",
+        difficulty: "ADVANCED",
+        title: "소셜 로그인 기존 사용자 탐색 순서",
         question: "`socialLogin`은 provider와 providerId를 정규화한 뒤 기존 사용자를 어떤 순서로 찾습니까?",
         options: [
           { id: "A", text: "정규화된 이메일로 먼저 찾고, 없으면 provider/providerId 조합으로 찾는다" },
@@ -1216,6 +1297,8 @@ export const curatedProblemSets = [
         id: "goreon-social-login-account-linking-q2",
         type: "MULTIPLE_CHOICE",
         tag: "STATE_CHANGE",
+        difficulty: "INTERMEDIATE",
+        title: "소셜 provider 연결 상태 갱신",
         question: "`applySocialProvider`가 이미 같은 provider/providerId 항목을 가진 사용자를 받으면 어떤 상태를 갱신합니까?",
         options: [
           { id: "A", text: "기존 social provider 항목의 `lastLoginAt`과, 값이 있으면 `profileImage`를 갱신한다" },
@@ -1231,6 +1314,8 @@ export const curatedProblemSets = [
         id: "goreon-social-login-account-linking-q3",
         type: "MULTIPLE_CHOICE",
         tag: "ERROR_HANDLING",
+        difficulty: "ADVANCED",
+        title: "OAuth 중복 키 오류 리다이렉트",
         question: "소셜 OAuth 콜백 처리에서 MongoDB 중복 키 오류(`code === 11000`)가 발생하면 컨트롤러는 어떤 redirect 결과를 만듭니까?",
         options: [
           { id: "A", text: "`social_login_failed` 오류 코드와 provider 값을 포함해 실패 페이지로 보낸다" },
@@ -1249,7 +1334,6 @@ export const curatedProblemSets = [
     sourceType: "CURATED",
     visibility: "PUBLIC",
     displayTitle: "카카오 이메일 동의 검증 흐름 읽기",
-    summary: "카카오 OAuth에서 이메일 제공 동의가 profile mapping 이후 로그인 처리 전에 어떻게 검증되고 사용자 메시지로 이어지는지 확인합니다.",
     difficulty: "BEGINNER",
     primaryTags: ["API_CONTRACT", "ERROR_HANDLING", "DATA_FLOW"],
     languageTags: ["JavaScript", "React"],
@@ -1269,6 +1353,8 @@ export const curatedProblemSets = [
         id: "goreon-kakao-email-consent-q1",
         type: "MULTIPLE_CHOICE",
         tag: "API_CONTRACT",
+        difficulty: "BEGINNER",
+        title: "카카오 OAuth scope 추가",
         question: "카카오 로그인 URL 생성 시 이번 변경으로 추가된 OAuth scope는 무엇입니까?",
         options: [
           { id: "A", text: "`account_email`" },
@@ -1284,6 +1370,8 @@ export const curatedProblemSets = [
         id: "goreon-kakao-email-consent-q2",
         type: "MULTIPLE_CHOICE",
         tag: "ERROR_HANDLING",
+        difficulty: "INTERMEDIATE",
+        title: "카카오 이메일 동의 오류 조건",
         question: "`assertRequiredProviderData`는 어떤 경우 `Kakao email consent is required` 오류를 던집니까?",
         options: [
           { id: "A", text: "provider가 kakao이고 매핑된 사용자 정보에 email이 없을 때" },
@@ -1299,6 +1387,8 @@ export const curatedProblemSets = [
         id: "goreon-kakao-email-consent-q3",
         type: "MULTIPLE_CHOICE",
         tag: "DATA_FLOW",
+        difficulty: "INTERMEDIATE",
+        title: "provider profile 검증 후 로그인 흐름",
         question: "`handleSocialCallback`에서 provider profile을 가져온 뒤 로그인 처리로 넘어가기 전 추가된 단계는 무엇입니까?",
         options: [
           { id: "A", text: "provider 사용자 정보를 매핑한 뒤 필수 provider 데이터를 검증한다" },
@@ -1317,7 +1407,6 @@ export const curatedProblemSets = [
     sourceType: "CURATED",
     visibility: "PUBLIC",
     displayTitle: "주문 상품별 구매 확정 상태 흐름 읽기",
-    summary: "주문 단위와 상품 단위의 구매 확정 상태가 백엔드 모델, 라우트, 주문 내역 화면에서 어떻게 연결되는지 살펴봅니다.",
     difficulty: "INTERMEDIATE",
     primaryTags: ["STATE_CHANGE", "API_CONTRACT", "DATA_FLOW"],
     languageTags: ["JavaScript", "React"],
@@ -1342,6 +1431,8 @@ export const curatedProblemSets = [
         id: "goreon-order-item-confirmation-q1",
         type: "MULTIPLE_CHOICE",
         tag: "STATE_CHANGE",
+        difficulty: "ADVANCED",
+        title: "상품별 확정 후 주문 상태 전환",
         question: "`confirmOrderItem`이 특정 상품을 확정한 뒤 주문 전체 상태를 `confirmed`로 바꾸는 조건은 무엇입니까?",
         options: [
           { id: "A", text: "주문 안의 모든 상품 status가 `confirmed`일 때" },
@@ -1357,6 +1448,8 @@ export const curatedProblemSets = [
         id: "goreon-order-item-confirmation-q2",
         type: "MULTIPLE_CHOICE",
         tag: "API_CONTRACT",
+        difficulty: "BEGINNER",
+        title: "상품 단위 구매 확정 라우트",
         question: "상품 단위 구매 확정을 위해 추가된 라우트의 형태는 무엇입니까?",
         options: [
           { id: "A", text: "`PATCH /:orderId/items/:itemIndex/confirm`" },
@@ -1372,6 +1465,8 @@ export const curatedProblemSets = [
         id: "goreon-order-item-confirmation-q3",
         type: "MULTIPLE_CHOICE",
         tag: "DATA_FLOW",
+        difficulty: "INTERMEDIATE",
+        title: "개별 상품 확정 요청 식별자",
         question: "주문 내역 화면에서 개별 상품 확정 요청을 보낼 때 사용하는 식별자 조합은 무엇입니까?",
         options: [
           { id: "A", text: "orderId와 itemIndex" },
@@ -1416,7 +1511,6 @@ export function getCuratedCreatedAt(slug: string): string {
 export const publicProblemSetSummaries = curatedProblemSets.map((problemSet) => ({
   id: problemSet.id,
   displayTitle: problemSet.displayTitle,
-  summary: problemSet.summary,
   difficulty: problemSet.difficulty,
   primaryTags: problemSet.primaryTags,
   languageTags: problemSet.languageTags,
@@ -1438,3 +1532,34 @@ export const publicProblemSetSummaries = curatedProblemSets.map((problemSet) => 
   questionCount: problemSet.questions.length,
   createdAt: getCuratedCreatedAt(problemSet.id),
 }));
+
+export const publicQuestionSummaries = curatedProblemSets.flatMap((problemSet) =>
+  problemSet.questions.map((question, index) => ({
+    id: question.id,
+    problemSetId: problemSet.id,
+    displayTitle: problemSet.displayTitle,
+    title: question.title,
+    question: question.question,
+    tag: question.tag,
+    difficulty: (question as { difficulty?: QuestionDifficulty }).difficulty ?? problemSet.difficulty,
+    languageTags: problemSet.languageTags,
+    frameworkTags: problemSet.frameworkTags,
+    libraryTags: problemSet.libraryTags,
+    topicTags: problemSet.topicTags,
+    repository: problemSet.repository,
+    repositoryOwner: problemSet.repositoryOwner,
+    repositoryName: problemSet.repositoryName,
+    pullNumber: problemSet.pullNumber,
+    prUrl: problemSet.sourceUrl,
+    prTitle: problemSet.sourcePrTitle,
+    sourceUrl: problemSet.sourceUrl,
+    sourcePrTitle: problemSet.sourcePrTitle,
+    sourceType: problemSet.sourceType,
+    visibility: problemSet.visibility,
+    estimatedMinutes: 3,
+    relatedFiles: question.relatedFiles,
+    orderIndex: index,
+    createdAt: getCuratedCreatedAt(problemSet.id),
+    submissionCount: 0,
+  }))
+);

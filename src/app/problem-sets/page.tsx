@@ -1,64 +1,39 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { BookOpen, ArrowRight, ExternalLink, GitPullRequest } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { FilterSelect } from "@/components/filter-select";
-import {
-  publicProblemSetSummaries,
-  QuestionTag,
-} from "@/data/curated-problem-sets";
-import type { ProblemSetSummary } from "@/lib/types";
+import { ProblemQuestionCard } from "@/components/problem-question-card";
+import { useQuestionProgress } from "@/lib/use-question-progress";
+import { useAuth } from "@/components/auth-provider";
+import type { ProblemQuestionSummary } from "@/lib/types";
 
-const TAG_LABELS: Record<QuestionTag, string> = {
-  CODE_BEHAVIOR: "Code Behavior",
-  DATA_FLOW: "Data Flow",
-  STATE_CHANGE: "State Change",
-  SIDE_EFFECT: "Side Effect",
-  ERROR_HANDLING: "Error Handling",
-  API_CONTRACT: "API Contract",
-  TEST_INTENT: "Test Intent",
-  LOGIC_ERROR: "Logic Error",
-  STRUCTURAL_CHANGE: "Structural Change",
-  CONFIG_CHANGE: "Config Change",
-};
+type SortOption = "latest" | "oldest" | "popular-desc" | "popular-asc";
+type ProgressFilter = "ALL" | "untried" | "attempted" | "solved";
 
-const DIFFICULTY_LABEL: Record<string, string> = {
-  BEGINNER: "Beginner",
-  INTERMEDIATE: "Intermediate",
-  ADVANCED: "Advanced",
-};
-
-const DIFFICULTY_STYLE: Record<string, string> = {
-  BEGINNER: "bg-emerald-50 text-emerald-700",
-  INTERMEDIATE: "bg-amber-50 text-amber-700",
-  ADVANCED: "bg-rose-50 text-rose-700",
-};
-
-type SortOption = "latest" | "difficulty-asc" | "difficulty-desc";
-
-const DIFFICULTY_ORDER = { BEGINNER: 0, INTERMEDIATE: 1, ADVANCED: 2 };
 
 export default function ProblemSetsPage() {
-  const [problemSets, setProblemSets] = useState<ProblemSetSummary[]>(
-    publicProblemSetSummaries as ProblemSetSummary[]
-  );
+  const [questions, setQuestions] = useState<ProblemQuestionSummary[] | null>(null);
   const [filterDifficulty, setFilterDifficulty] = useState<string>("ALL");
   const [filterLanguage, setFilterLanguage] = useState<string>("ALL");
   const [filterFramework, setFilterFramework] = useState<string>("ALL");
+  const [filterProgress, setFilterProgress] = useState<ProgressFilter>("ALL");
   const [sortBy, setSortBy] = useState<SortOption>("latest");
+  const { status, session } = useAuth();
+  const isLoggedIn = status === "authenticated" && session !== null;
+  const questionProgress = useQuestionProgress({ refreshOnMount: true });
 
   useEffect(() => {
     let cancelled = false;
     fetch("/api/problem-sets")
       .then((res) => (res.ok ? res.json() : Promise.reject()))
-      .then((data: { items: ProblemSetSummary[] }) => {
-        if (!cancelled) setProblemSets(data.items);
+      .then((data: { items: ProblemQuestionSummary[] }) => {
+        if (!cancelled) setQuestions(data.items);
       })
       .catch(() => {
-        if (!cancelled) setProblemSets(publicProblemSetSummaries as ProblemSetSummary[]);
+        if (!cancelled) setQuestions([]);
       });
     return () => {
       cancelled = true;
@@ -66,22 +41,16 @@ export default function ProblemSetsPage() {
   }, []);
 
   const allLanguages = useMemo(
-    () =>
-      Array.from(
-        new Set(publicProblemSetSummaries.flatMap((s) => s.languageTags))
-      ).sort(),
-    []
+    () => Array.from(new Set((questions ?? []).flatMap((s) => s.languageTags))).sort(),
+    [questions]
   );
   const allFrameworks = useMemo(
-    () =>
-      Array.from(
-        new Set(publicProblemSetSummaries.flatMap((s) => s.frameworkTags))
-      ).sort(),
-    []
+    () => Array.from(new Set((questions ?? []).flatMap((s) => s.frameworkTags))).sort(),
+    [questions]
   );
 
   const filtered = useMemo(() => {
-    let list = [...problemSets];
+    let list = [...(questions ?? [])];
 
     if (filterDifficulty !== "ALL") {
       list = list.filter((s) => s.difficulty === filterDifficulty);
@@ -97,25 +66,30 @@ export default function ProblemSetsPage() {
       );
     }
 
+    if (filterProgress !== "ALL") {
+      list = list.filter(
+        (s) => (questionProgress.get(s.id) ?? "untried") === filterProgress
+      );
+    }
+
     if (sortBy === "latest") {
       list.sort(
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
-    } else if (sortBy === "difficulty-asc") {
+    } else if (sortBy === "oldest") {
       list.sort(
         (a, b) =>
-          DIFFICULTY_ORDER[a.difficulty] - DIFFICULTY_ORDER[b.difficulty]
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
       );
-    } else if (sortBy === "difficulty-desc") {
-      list.sort(
-        (a, b) =>
-          DIFFICULTY_ORDER[b.difficulty] - DIFFICULTY_ORDER[a.difficulty]
-      );
+    } else if (sortBy === "popular-desc") {
+      list.sort((a, b) => b.submissionCount - a.submissionCount);
+    } else if (sortBy === "popular-asc") {
+      list.sort((a, b) => a.submissionCount - b.submissionCount);
     }
 
     return list;
-  }, [problemSets, filterDifficulty, filterLanguage, filterFramework, sortBy]);
+  }, [questions, filterDifficulty, filterLanguage, filterFramework, filterProgress, sortBy, questionProgress]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans">
@@ -128,9 +102,9 @@ export default function ProblemSetsPage() {
               문제 목록
             </h1>
             <p className="text-base md:text-lg text-muted-text leading-relaxed max-w-2xl">
-              실제 오픈소스 PR에서 엄선한 문제 세트입니다.
+              실제 오픈소스 PR에서 뽑은 코드 이해 문제입니다.
               <br />
-              학습 주제와 PR 메타데이터를 함께 확인하고 바로 풀어볼 수 있습니다.
+              문제별 난이도와 유형을 보고 한 문항씩 가볍게 풀어볼 수 있습니다.
             </p>
           </div>
 
@@ -142,9 +116,9 @@ export default function ProblemSetsPage() {
               onChange={setFilterDifficulty}
               options={[
                 { value: "ALL", label: "전체 난이도" },
-                { value: "BEGINNER", label: "Beginner" },
-                { value: "INTERMEDIATE", label: "Intermediate" },
-                { value: "ADVANCED", label: "Advanced" },
+                { value: "BEGINNER", label: "쉬움" },
+                { value: "INTERMEDIATE", label: "보통" },
+                { value: "ADVANCED", label: "어려움" },
               ]}
             />
 
@@ -170,15 +144,34 @@ export default function ProblemSetsPage() {
               ]}
             />
 
-            <div className="ml-auto">
+            {/* Progress filter — 로그인 사용자만 노출 */}
+            {isLoggedIn && (
+              <FilterSelect
+                label="풀이 상태"
+                value={filterProgress}
+                onChange={(v) => setFilterProgress(v as ProgressFilter)}
+                options={[
+                  { value: "ALL", label: "전체 문제" },
+                  { value: "untried", label: "안 푼 문제" },
+                  { value: "attempted", label: "틀린 문제" },
+                  { value: "solved", label: "맞춘 문제" },
+                ]}
+              />
+            )}
+
+            <div className="ml-auto flex items-center gap-3">
+              <span className="text-sm font-semibold text-muted-text tabular-nums">
+                {filtered.length}문제
+              </span>
               <FilterSelect
                 label="정렬"
                 value={sortBy}
                 onChange={(v) => setSortBy(v as SortOption)}
                 options={[
                   { value: "latest", label: "최신순" },
-                  { value: "difficulty-asc", label: "난이도 낮은 순" },
-                  { value: "difficulty-desc", label: "난이도 높은 순" },
+                  { value: "oldest", label: "오래된 순" },
+                  { value: "popular-desc", label: "인기 높은 순" },
+                  { value: "popular-asc", label: "인기 낮은 순" },
                 ]}
               />
             </div>
@@ -186,140 +179,52 @@ export default function ProblemSetsPage() {
           </div>
 
           <div>
-          {filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 text-center">
-              <div className="w-16 h-16 rounded-full bg-lavender-tint/50 flex items-center justify-center mb-4">
-                <BookOpen className="w-7 h-7 text-muted-text/60" />
+            {questions === null ? (
+              <div className="grid md:grid-cols-2 gap-6">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="rounded-xl border border-lavender-tint bg-white shadow-default p-6 animate-pulse"
+                  >
+                    <div className="mb-3 flex gap-2">
+                      <div className="h-6 w-12 rounded-full bg-lavender-tint" />
+                      <div className="h-6 w-16 rounded-full bg-lavender-tint" />
+                      <div className="ml-auto h-6 w-14 rounded-full bg-lavender-tint" />
+                    </div>
+                    <div className="mb-4 h-5 w-3/4 rounded bg-lavender-tint" />
+                    <div className="mb-1 h-4 w-full rounded bg-lavender-tint/60" />
+                    <div className="h-4 w-2/3 rounded bg-lavender-tint/60" />
+                  </div>
+                ))}
               </div>
-              <p className="text-base font-semibold text-text mb-1">
-                조건에 맞는 문제 세트가 없습니다
-              </p>
-              <p className="text-sm text-muted-text">
-                필터를 변경해 다시 검색해보세요.
-              </p>
-            </div>
-          ) : (
-            <div className="grid items-start md:grid-cols-2 gap-6">
-              {filtered.map((set) => (
-                <ProblemSetCard key={set.id} set={set} />
-              ))}
-            </div>
-          )}
+            ) : filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-center">
+                <div className="w-16 h-16 rounded-full bg-lavender-tint/50 flex items-center justify-center mb-4">
+                  <BookOpen className="w-7 h-7 text-muted-text/60" />
+                </div>
+                <p className="text-base font-semibold text-text mb-1">
+                  조건에 맞는 문제가 없습니다
+                </p>
+                <p className="text-sm text-muted-text">
+                  필터를 변경해 다시 검색해보세요.
+                </p>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 gap-6">
+                {filtered.map((set) => (
+                  <ProblemQuestionCard
+                    key={set.id}
+                    item={set}
+                    progressStatus={questionProgress.get(set.id) ?? "untried"}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </main>
 
       <SiteFooter />
-    </div>
-  );
-}
-
-function ProblemSetCard({
-  set,
-}: {
-  set: ProblemSetSummary;
-}) {
-  const techTags = [
-    ...set.languageTags.map((tag) => ({ kind: "language", tag })),
-    ...set.frameworkTags.map((tag) => ({ kind: "framework", tag })),
-    ...set.libraryTags.map((tag) => ({ kind: "library", tag })),
-  ];
-
-  return (
-    <div className="group bg-white rounded-xl border border-lavender-tint shadow-default hover:shadow-highlight transition-all duration-300 flex flex-col">
-      <div className="p-6 md:p-8">
-        {/* Top row: difficulty + repository */}
-        <div className="flex items-center gap-2 mb-4">
-          <span
-            className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-              DIFFICULTY_STYLE[set.difficulty]
-            }`}
-          >
-            {DIFFICULTY_LABEL[set.difficulty]}
-          </span>
-          <span className="ml-auto font-mono text-xs text-accent">
-            {set.repository}
-          </span>
-        </div>
-
-        {/* Title */}
-        <h2 className="text-lg font-bold text-text leading-snug mb-6">
-          {set.displayTitle}
-        </h2>
-
-        {/* PR info box */}
-        <div className="mb-6 rounded-xl border border-lavender-tint bg-background/60 p-4">
-          <div className="flex min-w-0 items-center gap-2 mb-2">
-            <GitPullRequest className="w-4 h-4 shrink-0 text-accent" />
-            <p className="truncate font-mono text-[11px] font-bold text-accent">
-              {set.repository} #{set.pullNumber}
-            </p>
-          </div>
-          <p className="text-sm font-semibold text-text leading-relaxed line-clamp-2">
-            {set.prTitle}
-          </p>
-        </div>
-
-        {/* Tags section */}
-        <div className="space-y-3">
-          {techTags.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-muted-text mb-2">
-                언어 · 프레임워크
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {techTags.map(({ kind, tag }) => (
-                  <span
-                    key={`${kind}-${tag}`}
-                    className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-sky-50 text-sky-700"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {set.questionTypeTags.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-muted-text mb-2">
-                문제 유형
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {set.questionTypeTags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-accent/10 text-accent"
-                  >
-                    {TAG_LABELS[tag as QuestionTag]}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Card Footer */}
-      <div className="px-6 md:px-8 pb-6 pt-0 flex items-center justify-end gap-2">
-          <a
-            href={set.prUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-lavender-tint px-4 text-sm font-semibold text-accent transition-all hover:border-accent hover:bg-lavender-tint/20 active:scale-[0.98]"
-            onClick={(event) => event.stopPropagation()}
-          >
-            PR 보기
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
-          <Link
-            href={`/problem-sets/${set.id}`}
-            className="inline-flex h-10 items-center justify-center gap-2 text-sm font-semibold text-white bg-accent hover:bg-primary px-4 rounded-lg shadow-sm hover:shadow-default transition-all active:scale-[0.98]"
-          >
-            풀기
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-      </div>
     </div>
   );
 }

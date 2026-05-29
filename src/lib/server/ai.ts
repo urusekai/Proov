@@ -5,11 +5,9 @@ const questionTagSchema = z.enum([
   "CODE_BEHAVIOR",
   "DATA_FLOW",
   "STATE_CHANGE",
-  "SIDE_EFFECT",
   "ERROR_HANDLING",
   "API_CONTRACT",
   "TEST_INTENT",
-  "LOGIC_ERROR",
   "STRUCTURAL_CHANGE",
   "CONFIG_CHANGE",
 ]);
@@ -18,7 +16,6 @@ const answerSchema = z.enum(["A", "B", "C", "D"]);
 
 export const generatedProblemSetSchema = z.object({
   displayTitle: z.string().min(1),
-  summary: z.string().min(1),
   difficulty: z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED"]),
   languageTags: z.array(z.string().min(1)).min(1),
   frameworkTags: z.array(z.string().min(1)),
@@ -29,6 +26,8 @@ export const generatedProblemSetSchema = z.object({
       z.object({
         type: z.literal("MULTIPLE_CHOICE"),
         tag: questionTagSchema,
+        difficulty: z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED"]),
+        title: z.string().min(1),
         question: z.string().min(1),
         options: z.array(z.object({ id: answerSchema, text: z.string().min(1) })).length(4),
         answer: answerSchema,
@@ -36,7 +35,8 @@ export const generatedProblemSetSchema = z.object({
         relatedFiles: z.array(z.string().min(1)).min(1).max(3),
       })
     )
-    .length(3),
+    .min(1)
+    .max(3),
 });
 
 export type GeneratedProblemSet = z.infer<typeof generatedProblemSetSchema>;
@@ -48,7 +48,6 @@ const jsonSchema = {
     additionalProperties: false,
     required: [
       "displayTitle",
-      "summary",
       "difficulty",
       "languageTags",
       "frameworkTags",
@@ -58,7 +57,6 @@ const jsonSchema = {
     ],
     properties: {
       displayTitle: { type: "string" },
-      summary: { type: "string" },
       difficulty: { type: "string", enum: ["BEGINNER", "INTERMEDIATE", "ADVANCED"] },
       languageTags: { type: "array", items: { type: "string" } },
       frameworkTags: { type: "array", items: { type: "string" } },
@@ -66,12 +64,12 @@ const jsonSchema = {
       topicTags: { type: "array", items: { type: "string" } },
       questions: {
         type: "array",
-        minItems: 3,
+        minItems: 1,
         maxItems: 3,
         items: {
           type: "object",
           additionalProperties: false,
-          required: ["type", "tag", "question", "options", "answer", "explanation", "relatedFiles"],
+          required: ["type", "tag", "difficulty", "title", "question", "options", "answer", "explanation", "relatedFiles"],
           properties: {
             type: { type: "string", enum: ["MULTIPLE_CHOICE"] },
             tag: {
@@ -80,15 +78,18 @@ const jsonSchema = {
                 "CODE_BEHAVIOR",
                 "DATA_FLOW",
                 "STATE_CHANGE",
-                "SIDE_EFFECT",
                 "ERROR_HANDLING",
                 "API_CONTRACT",
                 "TEST_INTENT",
-                "LOGIC_ERROR",
                 "STRUCTURAL_CHANGE",
                 "CONFIG_CHANGE",
               ],
             },
+            difficulty: {
+              type: "string",
+              enum: ["BEGINNER", "INTERMEDIATE", "ADVANCED"],
+            },
+            title: { type: "string" },
             question: { type: "string" },
             options: {
               type: "array",
@@ -122,27 +123,37 @@ const jsonSchema = {
 
 function buildPrompt(pr: CollectedPullRequest): string {
   return [
-    "Create exactly 3 Korean multiple-choice questions from the GitHub PR diff.",
-    "Use only facts from the diff. Do not infer beyond the patch.",
-    "Generate the 3 best questions first, then assign the single best matching tag to each question.",
-    "Also create displayTitle, summary, difficulty, languageTags, frameworkTags, libraryTags, and topicTags.",
-    "displayTitle must be Korean and describe the learning topic. Do not copy the PR title.",
-    "displayTitle and summary must not reveal the exact answer condition.",
-    "Each question has A/B/C/D options and exactly one answer.",
+    "Create 1 to 3 Korean multiple-choice questions from the GitHub PR diff. Generate as many as the diff genuinely supports — prefer 3 if rich, fewer only when fewer distinct learning points exist.",
+    "Use only facts from the diff.",
+    "Generate the best questions first, then assign the most fitting tag to each.",
+    "Assign difficulty per question based on cognitive effort:",
+    "BEGINNER: answer is explicitly present in the changed lines.",
+    "INTERMEDIATE: requires interpreting intent, comparing before/after, or following 1-2 steps of data/control flow.",
+    "ADVANCED: requires reasoning about non-obvious consequences — edge cases, failure modes, implicit side effects, or impact on code not shown in the diff.",
+    "For each question, create a short Korean title (noun phrase or noun clause using ~되는/~하는/~할 때의, NOT a full question, must NOT reveal the answer) that helps a list-browsing user understand what concept they will learn. Use well-known API/framework names (useEffect, fetch, parseJson, Response, URLSearchParams) when relevant; for project-internal function names, describe the concept instead. Examples — prefer these: '한 곡 반복 재생 시 재생 위치가 초기화되는 상태 조합' / '서버 세션 없을 때 리다이렉트 전에 추가되는 처리' / '`useEffect` 의존성 배열 변경 시 실행 타이밍이 달라지는 조건' / '로그아웃 후 초기화되는 스토어와 브라우저 저장값 범위' / '소셜 로그인 중복 계정 오류 시 만들어지는 redirect 결과' — over these: 'replayCurrentTrack() 상태 조합' / 'hasServerSession() 실패 처리' / 'useEffect deps 차이' / 'resetAllUserState 초기화 대상' / 'MongoError code 11000 처리'. Avoid generic labels like '변경된 코드 분석' or '함수 동작 이해'.",
+    "Set top-level difficulty to any valid value — it will be recalculated from question difficulties.",
+    "displayTitle must be Korean, describe the learning topic, not copy the PR title, and not reveal answer conditions.",
     "Do not ask file-name-only questions.",
+    "For small diffs, look for questions about code behavior, data flow, state changes, API shape, error handling, tests, config or constants, or structure changes.",
     "Explanation must be Korean and max 2 sentences.",
     "relatedFiles must include 1-3 paths from the diff.",
     "",
     `Repository: ${pr.owner}/${pr.repo}`,
     `Pull Request: #${pr.pullNumber} ${pr.title}`,
-    `Description: ${pr.body}`,
-    `Base branch: ${pr.baseBranch}`,
-    `Head branch: ${pr.headBranch}`,
+    ...(pr.body ? [`Description: ${pr.body}`] : []),
     `Changed files: ${pr.files.map((file) => file.filename).join(", ")}`,
     "",
     "Filtered diff:",
     pr.diffText,
   ].join("\n");
+}
+
+const DIFFICULTY_ORDER = { BEGINNER: 0, INTERMEDIATE: 1, ADVANCED: 2 } as const;
+type Difficulty = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
+
+function calcRepresentativeDifficulty(difficulties: Difficulty[]): Difficulty {
+  const sorted = [...difficulties].sort((a, b) => DIFFICULTY_ORDER[a] - DIFFICULTY_ORDER[b]);
+  return sorted[Math.floor(sorted.length / 2)];
 }
 
 export async function generateProblemSetFromPr(pr: CollectedPullRequest): Promise<GeneratedProblemSet> {
@@ -174,10 +185,16 @@ export async function generateProblemSetFromPr(pr: CollectedPullRequest): Promis
     throw Object.assign(new Error(`OpenAI request failed: ${detail}`), { code: "OPENAI_FAILED" });
   }
 
-  const body = (await response.json()) as { output_text?: string; output?: unknown[] };
+  type OutputContent = { type: string; text?: string };
+  type OutputItem = { content?: OutputContent[] };
+  const body = (await response.json()) as { output_text?: string; output?: OutputItem[] };
+
   const text =
     body.output_text ??
-    JSON.stringify(body.output ?? "").match(/"text":"([\s\S]*)"/)?.[1];
+    (body.output ?? [])
+      .flatMap((item) => item.content ?? [])
+      .find((c) => c.type === "output_text")
+      ?.text;
 
   if (!text) {
     throw Object.assign(new Error("OpenAI returned no JSON text."), { code: "AI_EMPTY_RESPONSE" });
@@ -196,5 +213,9 @@ export async function generateProblemSetFromPr(pr: CollectedPullRequest): Promis
     }
   }
 
-  return generated;
+  const representativeDifficulty = calcRepresentativeDifficulty(
+    generated.questions.map((q) => q.difficulty)
+  );
+
+  return { ...generated, difficulty: representativeDifficulty };
 }

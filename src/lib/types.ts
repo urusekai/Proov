@@ -2,16 +2,16 @@ export type QuestionTag =
   | "CODE_BEHAVIOR"
   | "DATA_FLOW"
   | "STATE_CHANGE"
-  | "SIDE_EFFECT"
   | "ERROR_HANDLING"
   | "API_CONTRACT"
   | "TEST_INTENT"
-  | "LOGIC_ERROR"
   | "STRUCTURAL_CHANGE"
   | "CONFIG_CHANGE";
 
 export type ProblemSetDifficulty = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
+export type QuestionDifficulty = ProblemSetDifficulty;
 export type AnswerId = "A" | "B" | "C" | "D";
+export type SubmissionScore = 0 | 33 | 67 | 100;
 
 export type ProblemOption = {
   id: AnswerId;
@@ -22,6 +22,8 @@ export type ProblemQuestion = {
   id: string;
   type: "MULTIPLE_CHOICE";
   tag: QuestionTag;
+  difficulty: QuestionDifficulty;
+  title: string;
   question: string;
   options: ProblemOption[];
   relatedFiles: string[];
@@ -35,7 +37,6 @@ export type ProblemSetDetail = {
   sourceType: "CURATED" | "GENERATED";
   visibility: "PUBLIC" | "PRIVATE";
   displayTitle: string;
-  summary: string;
   difficulty: ProblemSetDifficulty;
   estimatedMinutes: number;
   languageTags: string[];
@@ -65,6 +66,34 @@ export type ProblemSetSummary = Omit<
   questionCount: number;
 };
 
+export type ProblemQuestionSummary = {
+  id: string;
+  problemSetId: string;
+  sourceType: "CURATED" | "GENERATED";
+  visibility: "PUBLIC" | "PRIVATE";
+  displayTitle: string;
+  title: string;
+  question: string;
+  tag: QuestionTag;
+  difficulty: QuestionDifficulty;
+  estimatedMinutes: number;
+  languageTags: string[];
+  frameworkTags: string[];
+  libraryTags: string[];
+  topicTags: string[];
+  repository: string;
+  repositoryOwner: string;
+  repositoryName: string;
+  pullNumber: number;
+  prUrl: string;
+  prTitle: string;
+  sourcePatchUrl?: string;
+  relatedFiles: string[];
+  orderIndex: number;
+  createdAt: string;
+  submissionCount: number;
+};
+
 export type GitHubDiffFile = {
   filename: string;
   status: string;
@@ -79,6 +108,8 @@ export type SubmissionAnswerResult = {
   correctAnswer: AnswerId;
   isCorrect: boolean;
   tag: QuestionTag;
+  difficulty: QuestionDifficulty;
+  title: string;
   question: string;
   options: ProblemOption[];
   explanation: string;
@@ -88,7 +119,7 @@ export type SubmissionAnswerResult = {
 export type SubmissionResult = {
   id: string | null;
   problemSet: ProblemSetDetail;
-  score: 0 | 33 | 67 | 100;
+  score: SubmissionScore;
   correctCount: number;
   totalCount: number;
   submittedAt: string;
@@ -107,8 +138,9 @@ export type SubmissionListItemData = {
   sourcePrTitle: string;
   sourceUrl: string;
   difficulty: ProblemSetDifficulty;
-  score: 0 | 33 | 67 | 100;
+  score: SubmissionScore;
   correctCount: number;
+  totalCount: number;
   submittedAt: string;
   answers: SubmissionAnswerResult[];
 };

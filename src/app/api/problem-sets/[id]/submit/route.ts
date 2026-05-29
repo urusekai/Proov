@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { curatedToDetail, dbToDetail } from "@/lib/problem-set-mappers";
 import { ensureCuratedProblemSetInDb } from "@/lib/server/curated-sync";
+import { findSubmissionIdForQuestion } from "@/lib/server/submission-history";
 import { submissionStoreErrorResponse } from "@/lib/server/submission-errors";
 import { curatedQuestionDbId } from "@/lib/server/stable-id";
 import { createSupabaseAdmin, getAuthenticatedUser, hasSupabaseServerEnv, jsonError } from "@/lib/server/supabase-admin";
-import type { AnswerId, ProblemSetDetail, SubmissionResult } from "@/lib/types";
+import type { AnswerId, ProblemSetDetail, SubmissionResult, SubmissionScore } from "@/lib/types";
 
 const requestSchema = z.object({
   answers: z.array(
@@ -13,12 +14,16 @@ const requestSchema = z.object({
       selectedAnswer: z.enum(["A", "B", "C", "D"]),
     })
   ),
+}).refine((data) => data.answers.length > 0, {
+  message: "At least one answer is required.",
 });
 
-function toScore(correctCount: number): 0 | 33 | 67 | 100 {
-  if (correctCount === 3) return 100;
-  if (correctCount === 2) return 67;
-  if (correctCount === 1) return 33;
+function toScore(correctCount: number, totalCount: number): SubmissionScore {
+  if (totalCount <= 0 || correctCount === 0) return 0;
+  const percent = Math.round((correctCount / totalCount) * 100);
+  if (percent >= 100) return 100;
+  if (percent >= 67) return 67;
+  if (percent >= 33) return 33;
   return 0;
 }
 
@@ -58,13 +63,15 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return jsonError(404, "NOT_FOUND", "문제 세트를 찾을 수 없습니다.");
   }
 
-  const answerMap = new Map(body.data.answers.map((answer) => [answer.questionId, answer.selectedAnswer]));
-  if (problemSet.questions.some((question) => !answerMap.has(question.id))) {
-    return jsonError(400, "INCOMPLETE_ANSWERS", "모든 문항에 답해 주세요.");
+  const questionMap = new Map(problemSet.questions.map((question) => [question.id, question]));
+  const invalidAnswer = body.data.answers.find((answer) => !questionMap.has(answer.questionId));
+  if (invalidAnswer) {
+    return jsonError(400, "INVALID_QUESTION", "존재하지 않는 문항입니다.");
   }
 
-  const answers = problemSet.questions.map((question) => {
-    const selectedAnswer = answerMap.get(question.id) as AnswerId;
+  const answers = body.data.answers.map((submitted) => {
+    const question = questionMap.get(submitted.questionId)!;
+    const selectedAnswer = submitted.selectedAnswer as AnswerId;
     const correctAnswer = question.answer as AnswerId;
     return {
       questionId: question.id,
@@ -72,6 +79,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       correctAnswer,
       isCorrect: selectedAnswer === correctAnswer,
       tag: question.tag,
+      difficulty: question.difficulty,
+      title: question.title,
       question: question.question,
       options: question.options,
       explanation: question.explanation ?? "",
@@ -79,7 +88,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     };
   });
   const correctCount = answers.filter((answer) => answer.isCorrect).length;
-  const score = toScore(correctCount);
+  const totalCount = answers.length;
+  const score = toScore(correctCount, totalCount);
   const submittedAt = new Date().toISOString();
   let submissionId: string | null = null;
   let saved = false;
@@ -100,39 +110,80 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         dbProblemSetId = syncedId;
       }
 
-      const { data: submission, error: submissionError } = await supabase
-        .from("submissions")
-        .insert({
-          user_id: user.id,
-          problem_set_id: dbProblemSetId,
-          score,
-          correct_count: correctCount,
-          total_count: problemSet.questions.length,
-        })
-        .select("id")
-        .single();
+      const answerRows = answers.map((answer) => ({
+        question_id: isCurated ? curatedQuestionDbId(answer.questionId) : answer.questionId,
+        selected_answer: answer.selectedAnswer,
+        correct_answer: answer.correctAnswer,
+        is_correct: answer.isCorrect,
+      }));
 
-      if (submissionError) {
-        throw submissionError;
-      }
+      const existingSubmissionId =
+        answers.length === 1
+          ? await findSubmissionIdForQuestion(supabase, user.id, answerRows[0].question_id)
+          : null;
 
-      if (submission) {
-        const { error: answersError } = await supabase.from("submission_answers").insert(
-          answers.map((answer) => ({
-            submission_id: submission.id,
-            question_id: isCurated ? curatedQuestionDbId(answer.questionId) : answer.questionId,
-            selected_answer: answer.selectedAnswer,
-            correct_answer: answer.correctAnswer,
-            is_correct: answer.isCorrect,
-          }))
-        );
+      if (existingSubmissionId) {
+        const { error: updateError } = await supabase
+          .from("submissions")
+          .update({
+            problem_set_id: dbProblemSetId,
+            score,
+            correct_count: correctCount,
+            total_count: totalCount,
+            submitted_at: submittedAt,
+          })
+          .eq("id", existingSubmissionId)
+          .eq("user_id", user.id);
 
-        if (answersError) {
-          throw answersError;
+        if (updateError) throw updateError;
+
+        const { error: answersError } = await supabase
+          .from("submission_answers")
+          .update({
+            selected_answer: answerRows[0].selected_answer,
+            correct_answer: answerRows[0].correct_answer,
+            is_correct: answerRows[0].is_correct,
+          })
+          .eq("submission_id", existingSubmissionId)
+          .eq("question_id", answerRows[0].question_id);
+
+        if (answersError) throw answersError;
+
+        submissionId = existingSubmissionId;
+        saved = true;
+      } else {
+        const { data: submission, error: submissionError } = await supabase
+          .from("submissions")
+          .insert({
+            user_id: user.id,
+            problem_set_id: dbProblemSetId,
+            score,
+            correct_count: correctCount,
+            total_count: totalCount,
+            submitted_at: submittedAt,
+          })
+          .select("id")
+          .single();
+
+        if (submissionError) {
+          throw submissionError;
         }
 
-        submissionId = submission.id;
-        saved = true;
+        if (submission) {
+          const { error: answersError } = await supabase.from("submission_answers").insert(
+            answerRows.map((row) => ({
+              submission_id: submission.id,
+              ...row,
+            }))
+          );
+
+          if (answersError) {
+            throw answersError;
+          }
+
+          submissionId = submission.id;
+          saved = true;
+        }
       }
     } catch (storeError) {
       const code = (storeError as { code?: string }).code;
@@ -147,7 +198,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     problemSet,
     score,
     correctCount,
-    totalCount: problemSet.questions.length,
+    totalCount,
     submittedAt,
     saved,
     answers,

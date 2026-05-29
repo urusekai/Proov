@@ -3,12 +3,14 @@
 import React, { useEffect, useState } from "react";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Check, ArrowRight, Menu, X, Lock, GitPullRequest, ExternalLink, Link2, Sparkles, ClipboardList, History, ChevronRight, LogOut } from "lucide-react";
-import { publicProblemSetSummaries } from "@/data/curated-problem-sets";
-import type { QuestionTag, ProblemSetDifficulty } from "@/data/curated-problem-sets";
-import { apiFetch, getSession, signOut, subscribeAuth, type AppSession } from "@/lib/supabase";
+import { Check, ArrowRight, Lock, Link2, Sparkles, ClipboardList, History, ChevronRight, X } from "lucide-react";
+import { publicQuestionSummaries } from "@/data/curated-problem-sets";
+import { apiFetch, type AppSession } from "@/lib/supabase";
+import { useAuth } from "@/components/auth-provider";
+import { useQuestionProgress } from "@/lib/use-question-progress";
+import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { ProblemQuestionCard } from "@/components/problem-question-card";
 import type { SubmissionListItemData } from "@/lib/types";
 import { SubmissionListItem } from "@/components/submission-list-item";
 
@@ -27,127 +29,37 @@ const ProovLogo = ({ className = "w-6 h-6" }: { className?: string }) => (
   </svg>
 );
 
-const QUESTION_TAG_LABELS: Record<QuestionTag, string> = {
-  CODE_BEHAVIOR: "Code Behavior",
-  DATA_FLOW: "Data Flow",
-  STATE_CHANGE: "State Change",
-  SIDE_EFFECT: "Side Effect",
-  ERROR_HANDLING: "Error Handling",
-  API_CONTRACT: "API Contract",
-  TEST_INTENT: "Test Intent",
-  LOGIC_ERROR: "Logic Error",
-  STRUCTURAL_CHANGE: "Structural Change",
-  CONFIG_CHANGE: "Config Change",
-};
-
-const DIFFICULTY_LABELS: Record<ProblemSetDifficulty, string> = {
-  BEGINNER: "Beginner",
-  INTERMEDIATE: "Intermediate",
-  ADVANCED: "Advanced",
-};
-
-const DIFFICULTY_COLORS: Record<ProblemSetDifficulty, string> = {
-  BEGINNER: "bg-emerald-50 text-emerald-700",
-  INTERMEDIATE: "bg-amber-50 text-amber-700",
-  ADVANCED: "bg-rose-50 text-rose-700",
-};
-
-const featuredSets = publicProblemSetSummaries.slice(0, 3);
-
-function LandingProblemSetCard({ ps }: { ps: (typeof publicProblemSetSummaries)[number] }) {
-  const techTags = [
-    ...ps.languageTags.map((tag) => ({ kind: "language", tag })),
-    ...ps.frameworkTags.map((tag) => ({ kind: "framework", tag })),
-    ...ps.libraryTags.map((tag) => ({ kind: "library", tag })),
-  ];
-  return (
-    <div className="group bg-white rounded-xl border border-lavender-tint shadow-default hover:shadow-highlight transition-all duration-300 flex flex-col">
-      <div className="p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${DIFFICULTY_COLORS[ps.difficulty]}`}>
-            {DIFFICULTY_LABELS[ps.difficulty]}
-          </span>
-          <span className="ml-auto font-mono text-xs text-accent">{ps.repository}</span>
-        </div>
-        <h3 className="text-lg font-bold text-text leading-snug mb-6">
-          {ps.displayTitle}
-        </h3>
-        <div className="mb-6 rounded-xl border border-lavender-tint bg-background/60 p-4">
-          <div className="flex min-w-0 items-center gap-2 mb-2">
-            <GitPullRequest className="w-4 h-4 shrink-0 text-accent" />
-            <p className="truncate font-mono text-[11px] font-bold text-accent">
-              {ps.repository} #{ps.pullNumber}
-            </p>
-          </div>
-          <p className="text-sm font-semibold text-text leading-relaxed line-clamp-2">
-            {ps.sourcePrTitle}
-          </p>
-        </div>
-        <div className="space-y-3">
-          {techTags.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-muted-text mb-2">언어 · 프레임워크</p>
-              <div className="flex flex-wrap gap-1.5">
-                {techTags.map(({ kind, tag }) => (
-                  <span key={`${kind}-${tag}`} className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-sky-50 text-sky-700">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-          {ps.primaryTags.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-muted-text mb-2">문제 유형</p>
-              <div className="flex flex-wrap gap-1.5">
-                {ps.primaryTags.map((tag) => (
-                  <span key={tag} className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-accent/10 text-accent">
-                    {QUESTION_TAG_LABELS[tag]}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="px-6 pb-6 pt-0 mt-auto flex items-center justify-end gap-2">
-        <a
-          href={ps.sourceUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-lavender-tint px-4 text-sm font-semibold text-accent transition-all hover:border-accent hover:bg-lavender-tint/20 active:scale-[0.98]"
-        >
-          PR 보기
-          <ExternalLink className="w-3.5 h-3.5" />
-        </a>
-        <Link
-          href={`/problem-sets/${ps.id}`}
-          className="inline-flex h-10 items-center justify-center gap-2 text-sm font-semibold text-white bg-accent hover:bg-primary px-4 rounded-lg shadow-sm hover:shadow-default transition-all active:scale-[0.98]"
-        >
-          풀기
-          <ArrowRight className="w-3.5 h-3.5" />
-        </Link>
-      </div>
-    </div>
-  );
-}
+const PORTFOLIO_SET_IDS = [
+  "zustand-devtools-type-declaration",
+  "react-hook-form-bulk-value-notification",
+  "zod-object-fallback-semantics",
+];
+const featuredQuestions = PORTFOLIO_SET_IDS
+  .map((id) => publicQuestionSummaries.find((q) => q.problemSetId === id))
+  .filter((q): q is NonNullable<typeof q> => q != null);
 
 function getDailyRandomSets(count: number) {
   const d = new Date();
   const seed = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-  return [...publicProblemSetSummaries]
+
+  const seenSets = new Set<string>();
+  return [...publicQuestionSummaries]
     .map((ps) => ({ ps, order: (seed * 31 + ps.id.split("").reduce((a, c) => a + c.charCodeAt(0), 0)) % 997 }))
     .sort((a, b) => a.order - b.order)
+    .filter(({ ps }) => {
+      if (seenSets.has(ps.problemSetId)) return false;
+      seenSets.add(ps.problemSetId);
+      return true;
+    })
     .slice(0, count)
     .map(({ ps }) => ps);
 }
 
 function DashboardView({ session }: { session: AppSession }) {
-  const router = useRouter();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [recentSubmissions, setRecentSubmissions] = useState<SubmissionListItemData[]>([]);
 
-  const dailySets = getDailyRandomSets(3);
+  const dailyQuestions = getDailyRandomSets(3);
+  const questionProgress = useQuestionProgress({ refreshOnMount: true });
 
   useEffect(() => {
     let cancelled = false;
@@ -171,87 +83,22 @@ function DashboardView({ session }: { session: AppSession }) {
     };
   }, []);
 
-  const handleSignOut = () => {
-    signOut().then(() => router.push("/"));
-  };
-
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans selection:bg-accent/20">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-lavender-tint">
-        <div className="w-full max-w-none mx-auto px-4 md:px-6 xl:px-8 2xl:px-10 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-2 text-primary font-bold text-[20px] leading-none hover:opacity-90 transition-opacity">
-              <ProovLogo className="w-[18px] h-[18px] text-accent" />
-              <span>Proov</span>
-            </Link>
-            <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-text">
-              <Link href="/problem-sets/new" className="hover:text-accent transition-colors relative py-1 after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-accent after:scale-x-0 hover:after:scale-x-100 after:transition-transform">문제 만들기</Link>
-              <Link href="/problem-sets" className="hover:text-accent transition-colors relative py-1 after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-accent after:scale-x-0 hover:after:scale-x-100 after:transition-transform">문제 목록</Link>
-              <Link href="/history" className="hover:text-accent transition-colors relative py-1 after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-accent after:scale-x-0 hover:after:scale-x-100 after:transition-transform">내 기록</Link>
-            </nav>
-          </div>
-          <div className="hidden md:flex items-center gap-3">
-            <Link href="/mypage" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              {session.user.avatar_url ? (
-                <img src={session.user.avatar_url} alt={session.user.nickname} className="w-7 h-7 rounded-full object-cover" />
-              ) : (
-                <div className="w-7 h-7 rounded-full bg-accent/15 text-accent flex items-center justify-center text-xs font-bold shrink-0">
-                  {session.user.nickname.charAt(0)}
-                </div>
-              )}
-              <span className="text-sm text-muted-text font-medium truncate max-w-[120px]">{session.user.nickname}</span>
-            </Link>
-            <button onClick={handleSignOut} className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-text hover:text-text px-4 py-2 transition-colors">
-              <LogOut className="w-4 h-4" />
-              로그아웃
-            </button>
-          </div>
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden p-2 text-muted-text hover:text-text hover:bg-lavender-tint/50 rounded-lg transition-colors">
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
-        </div>
-        {mobileMenuOpen && (
-          <div className="md:hidden bg-background border-b border-lavender-tint px-4 py-4 animate-in slide-in-from-top duration-200">
-            <nav className="flex flex-col gap-4 text-sm font-medium text-muted-text mb-4">
-              <Link href="/problem-sets/new" onClick={() => setMobileMenuOpen(false)} className="hover:text-accent py-1 transition-colors">문제 만들기</Link>
-              <Link href="/problem-sets" onClick={() => setMobileMenuOpen(false)} className="hover:text-accent py-1 transition-colors">문제 목록</Link>
-              <Link href="/history" onClick={() => setMobileMenuOpen(false)} className="hover:text-accent py-1 transition-colors">내 기록</Link>
-            </nav>
-            <div className="border-t border-lavender-tint/60 pt-4 flex flex-col gap-2">
-              <Link
-                href="/mypage"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2 pb-1 hover:opacity-80 transition-opacity"
-              >
-                {session.user.avatar_url ? (
-                  <img src={session.user.avatar_url} alt={session.user.nickname} className="w-6 h-6 rounded-full object-cover shrink-0" />
-                ) : (
-                  <div className="w-6 h-6 rounded-full bg-accent/15 text-accent flex items-center justify-center text-[11px] font-bold shrink-0">
-                    {session.user.nickname.charAt(0)}
-                  </div>
-                )}
-                <span className="text-sm text-muted-text">{session.user.nickname}</span>
-              </Link>
-              <button onClick={handleSignOut} className="inline-flex items-center gap-2 text-sm font-medium text-muted-text py-2.5 border border-lavender-tint rounded-lg transition-colors justify-center">
-                <LogOut className="w-4 h-4" />
-                로그아웃
-              </button>
-            </div>
-          </div>
-        )}
-      </header>
+      <SiteHeader activePath="/" />
 
       <main className="flex-grow">
         {/* Hero / CTA Section */}
         <section className="py-16 md:py-20 bg-white border-b border-lavender-tint">
           <div className="w-full max-w-[1248px] mx-auto px-6">
-            <p className="text-sm font-semibold text-accent mb-3">안녕하세요, {session.user.nickname}님!</p>
+            <p className="text-lg md:text-xl font-semibold text-accent mb-3">
+              안녕하세요, {session.user.nickname}님!
+            </p>
             <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-text mb-3">
               오늘은 어떤 문제를 풀어볼까요?
             </h1>
-            <p className="text-base md:text-lg text-muted-text leading-relaxed mb-8 max-w-xl">
-              공개 GitHub PR을 직접 입력하거나, 큐레이션된 문제 세트에서 바로 시작할 수 있습니다.
+            <p className="text-base md:text-lg text-muted-text leading-relaxed mb-8 max-w-xl whitespace-pre-line">
+              {"공개 GitHub PR을 입력하여 나만의 문제를 생성하거나,\n큐레이션된 문제에서 바로 시작할 수 있습니다."}
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <Link
@@ -283,8 +130,12 @@ function DashboardView({ session }: { session: AppSession }) {
               </Link>
             </div>
             <div className="grid md:grid-cols-3 gap-6">
-              {dailySets.map((ps) => (
-                <LandingProblemSetCard key={ps.id} ps={ps} />
+              {dailyQuestions.map((ps) => (
+                <ProblemQuestionCard
+                  key={ps.id}
+                  item={ps}
+                  progressStatus={questionProgress.get(ps.id) ?? "untried"}
+                />
               ))}
             </div>
           </div>
@@ -335,24 +186,9 @@ function DashboardView({ session }: { session: AppSession }) {
 }
 
 export default function Home() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [session, setSession] = useState<AppSession | null>(null);
-  const [authReady, setAuthReady] = useState(false);
+  const { status, session } = useAuth();
 
-  useEffect(() => {
-    let mounted = true;
-    const refresh = () => {
-      getSession().then((nextSession) => {
-        if (!mounted) return;
-        setSession(nextSession);
-        setAuthReady(true);
-      });
-    };
-    refresh();
-    return subscribeAuth(refresh);
-  }, []);
-
-  if (!authReady) {
+  if (status === "loading") {
     return null;
   }
 
@@ -362,68 +198,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col font-sans selection:bg-accent/20">
-      {/* Navigation Bar */}
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-lavender-tint">
-        <div className="w-full max-w-none mx-auto px-4 md:px-6 xl:px-8 2xl:px-10 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            {/* Logo */}
-            <Link href="/" className="flex items-center gap-2 text-primary font-bold text-[20px] leading-none hover:opacity-90 transition-opacity">
-              <ProovLogo className="w-[18px] h-[18px] text-accent" />
-              <span>Proov</span>
-            </Link>
-
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-text">
-              <Link href="/problem-sets/new" className="hover:text-accent transition-colors relative py-1 after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-accent after:scale-x-0 hover:after:scale-x-100 after:transition-transform">
-                문제 만들기
-              </Link>
-              <Link href="/problem-sets" className="hover:text-accent transition-colors relative py-1 after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-accent after:scale-x-0 hover:after:scale-x-100 after:transition-transform">
-                문제 목록
-              </Link>
-              <Link href="/history" className="hover:text-accent transition-colors relative py-1 after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-accent after:scale-x-0 hover:after:scale-x-100 after:transition-transform">
-                내 기록
-              </Link>
-            </nav>
-          </div>
-
-          {/* User Auth Buttons */}
-          <div className="hidden md:flex items-center gap-3">
-            <Link href="/auth/login" className="text-sm font-medium text-muted-text hover:text-text px-4 py-2 transition-colors">
-              로그인
-            </Link>
-            <Link href="/auth/signup" className="text-sm font-medium bg-accent text-white px-5 py-2.5 rounded-lg hover:bg-primary transition-all hover:shadow-default active:scale-[0.98]">
-              회원가입
-            </Link>
-          </div>
-
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 text-muted-text hover:text-text hover:bg-lavender-tint/50 rounded-lg transition-colors"
-          >
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
-        </div>
-
-        {/* Mobile Navigation Drawer */}
-        {mobileMenuOpen && (
-          <div className="md:hidden bg-background border-b border-lavender-tint px-4 md:px-6 py-4 animate-in slide-in-from-top duration-200">
-            <nav className="flex flex-col gap-4 text-sm font-medium text-muted-text mb-6">
-              <Link href="/problem-sets/new" className="hover:text-accent py-1 transition-colors">문제 만들기</Link>
-              <Link href="/problem-sets" className="hover:text-accent py-1 transition-colors">문제 목록</Link>
-              <Link href="/history" className="hover:text-accent py-1 transition-colors">내 기록</Link>
-            </nav>
-            <div className="flex flex-col gap-2">
-              <Link href="/auth/login" className="text-sm font-medium text-muted-text hover:text-text py-2.5 border border-lavender-tint rounded-lg transition-colors text-center">
-                로그인
-              </Link>
-              <Link href="/auth/signup" className="text-sm font-medium bg-accent text-white py-2.5 rounded-lg hover:bg-primary transition-all text-center">
-                회원가입
-              </Link>
-            </div>
-          </div>
-        )}
-      </header>
+      <SiteHeader activePath="/" />
 
       {/* Main Contents */}
       <main className="flex-grow">
@@ -457,13 +232,13 @@ export default function Home() {
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-8 py-3.5 text-sm md:text-base font-semibold text-white shadow-sm transition-all hover:bg-primary hover:shadow-default active:scale-[0.98]"
               >
                 <Lock className="w-4 h-4" />
-                <span>로그인하고 문제 생성하기</span>
+                <span>로그인하고 나만의 문제 만들기</span>
               </Link>
               <Link
                 href="/problem-sets"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg border border-lavender-tint bg-white px-8 py-3.5 text-sm md:text-base font-semibold text-accent shadow-sm transition-all hover:border-accent hover:shadow-default active:scale-[0.98]"
               >
-                <span>로그인없이 문제 둘러보기</span>
+                <span>로그인 없이 문제 풀어보기</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -494,7 +269,7 @@ export default function Home() {
                 {
                   icon: <Sparkles className="w-6 h-6" />,
                   title: "AI 문제 생성",
-                  desc: "코드 변경의 핵심 의도를 분석해\n3개의 문제를 자동 출제합니다.",
+                  desc: "코드 변경의 핵심 의도를 분석해\n맞춤형 문제를 자동 출제합니다.",
                 },
                 {
                   icon: <ClipboardList className="w-6 h-6" />,
@@ -644,7 +419,7 @@ export default function Home() {
                     <div>
                       <h4 className="text-base font-bold text-text mb-1">매번 새로운 맞춤형 문제</h4>
                       <p className="text-sm text-muted-text leading-relaxed">
-                        입력하는 PR에 따라 고유하고 논리적인 3개의 객관식 문제 출제
+                        입력하는 PR에 따라 고유하고 논리적인 맞춤형 객관식 문제 출제
                       </p>
                     </div>
                   </li>
@@ -673,13 +448,13 @@ export default function Home() {
                 지금 바로 풀 수 있는 문제
               </h2>
               <p className="text-base text-muted-text">
-                로그인 없이 큐레이션된 문제 세트를 바로 풀어볼 수 있습니다.
+                로그인 없이 큐레이션된 문제를 바로 풀어볼 수 있습니다.
               </p>
             </div>
 
             <div className="grid md:grid-cols-3 gap-6">
-              {featuredSets.map((ps) => (
-                <LandingProblemSetCard key={ps.id} ps={ps} />
+              {featuredQuestions.map((ps) => (
+                <ProblemQuestionCard key={ps.id} item={ps} />
               ))}
             </div>
 
@@ -688,7 +463,7 @@ export default function Home() {
                 href="/problem-sets"
                 className="inline-flex items-center gap-2 text-sm font-bold border border-lavender-tint text-accent hover:text-primary hover:border-accent hover:bg-lavender-tint/20 px-6 py-3 rounded-lg transition-all active:scale-[0.98]"
               >
-                <span>전체 문제 세트 보기</span>
+                <span>전체 문제 보기</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>

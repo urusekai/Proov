@@ -2,50 +2,47 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { History, BookOpen } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { FilterSelect } from "@/components/filter-select";
 import type { QuestionTag } from "@/data/curated-problem-sets";
-import { apiFetch, getSession } from "@/lib/supabase";
+import { apiFetch } from "@/lib/supabase";
+import { useRequireAuth } from "@/components/auth-provider";
 import { SubmissionListItem, SubmissionListItemSkeleton } from "@/components/submission-list-item";
 import type { SubmissionListItemData } from "@/lib/types";
 
-type SortOption = "date" | "score-desc" | "score-asc";
-type AuthStatus = "checking" | "authenticated" | "unauthenticated";
+type SortOption = "date-desc" | "date-asc";
 
 const TAG_LABELS: Record<QuestionTag, string> = {
-  CODE_BEHAVIOR: "Code Behavior",
-  DATA_FLOW: "Data Flow",
-  STATE_CHANGE: "State Change",
-  SIDE_EFFECT: "Side Effect",
-  ERROR_HANDLING: "Error Handling",
-  API_CONTRACT: "API Contract",
-  TEST_INTENT: "Test Intent",
-  LOGIC_ERROR: "Logic Error",
-  STRUCTURAL_CHANGE: "Structural Change",
-  CONFIG_CHANGE: "Config Change",
+  CODE_BEHAVIOR: "코드 동작",
+  DATA_FLOW: "데이터 흐름",
+  STATE_CHANGE: "상태 변화",
+  ERROR_HANDLING: "에러 처리",
+  API_CONTRACT: "API 명세",
+  TEST_INTENT: "테스트 의도",
+  STRUCTURAL_CHANGE: "구조 변경",
+  CONFIG_CHANGE: "설정값",
 };
 
 const DIFFICULTY_ITEMS = [
   {
     key: "BEGINNER",
-    label: "Beginner",
+    label: "쉬움",
     barClass: "bg-emerald-400",
     textClass: "text-emerald-600",
     badgeClass: "bg-emerald-50 text-emerald-700",
   },
   {
     key: "INTERMEDIATE",
-    label: "Intermediate",
+    label: "보통",
     barClass: "bg-amber-400",
     textClass: "text-amber-600",
     badgeClass: "bg-amber-50 text-amber-700",
   },
   {
     key: "ADVANCED",
-    label: "Advanced",
+    label: "어려움",
     barClass: "bg-rose-400",
     textClass: "text-rose-500",
     badgeClass: "bg-rose-50 text-rose-700",
@@ -74,54 +71,49 @@ function countStreak(dateStrings: string[]): number {
 }
 
 export default function HistoryPage() {
-  const router = useRouter();
-  const [sortBy, setSortBy] = useState<SortOption>("date");
-  const [authStatus, setAuthStatus] = useState<AuthStatus>("checking");
+  const [sortBy, setSortBy] = useState<SortOption>("date-desc");
   const [submissions, setSubmissions] = useState<SubmissionListItemData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { isReady } = useRequireAuth("/history");
 
   useEffect(() => {
+    if (!isReady) return;
+
     let cancelled = false;
-    getSession().then((session) => {
-      if (cancelled) return;
-      if (!session) {
-        setAuthStatus("unauthenticated");
-        router.replace("/auth/login?redirect=/history");
-        return;
-      }
-      setAuthStatus("authenticated");
-      apiFetch("/api/submissions")
-        .then((res) => {
-          if (!res.ok) throw new Error("fetch failed");
-          return res.json();
-        })
-        .then((data: { items: SubmissionListItemData[] }) => {
-          if (!cancelled) setSubmissions(data.items);
-        })
-        .catch(() => {
-          if (!cancelled) setSubmissions([]);
-        });
-    });
+    setIsLoading(true);
+    apiFetch("/api/submissions")
+      .then((res) => {
+        if (!res.ok) throw new Error("fetch failed");
+        return res.json();
+      })
+      .then((data: { items: SubmissionListItemData[] }) => {
+        if (!cancelled) setSubmissions(data.items);
+      })
+      .catch(() => {
+        if (!cancelled) setSubmissions([]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [isReady]);
 
   const sorted = useMemo(() => {
     const list = [...submissions];
-    if (sortBy === "date")
+    if (sortBy === "date-asc")
       return list.sort(
-        (a, b) =>
-          new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
+        (a, b) => new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime()
       );
-    if (sortBy === "score-desc") return list.sort((a, b) => b.score - a.score);
-    return list.sort((a, b) => a.score - b.score);
+    return list.sort(
+      (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
+    );
   }, [submissions, sortBy]);
 
   const totalCount = submissions.length;
-  const totalQuestionCount = submissions.reduce(
-    (acc, submission) => acc + submission.answers.length,
-    0
-  );
+  const totalQuestionCount = totalCount;
   const tagStats = submissions.reduce(
     (acc, submission) => {
       submission.answers.forEach((answer) => {
@@ -159,34 +151,34 @@ export default function HistoryPage() {
   const streakDays = countStreak(
     submissions.map((submission) => submission.submittedAt)
   );
-  const isLoading = authStatus === "checking";
-  const isReady = authStatus === "authenticated";
-
   const difficultyStats = useMemo(() => {
     return submissions.reduce(
       (acc, sub) => {
-        acc[sub.difficulty] = (acc[sub.difficulty] ?? 0) + 1;
+        const difficulty = sub.answers[0]?.difficulty ?? sub.difficulty;
+        acc[difficulty] = (acc[difficulty] ?? 0) + 1;
         return acc;
       },
       {} as Partial<Record<"BEGINNER" | "INTERMEDIATE" | "ADVANCED", number>>
     );
   }, [submissions]);
 
-  if (!isLoading && !isReady) return null;
+  if (!isReady) return null;
 
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans">
       <SiteHeader activePath="/history" />
 
       <main className="flex-grow">
-        <div className="max-w-[1248px] mx-auto px-6 pt-10 pb-12">
+        <div className="max-w-[1248px] mx-auto px-6 pt-12 pb-12">
           <div className="mb-10">
-            <h1 className="mb-3 text-3xl md:text-4xl font-extrabold tracking-tight text-text">
-              내 기록
-            </h1>
-            <p className="text-base md:text-lg text-muted-text leading-relaxed max-w-2xl mb-10">
-              이전 풀이 결과와 점수를 확인하고, 다시 풀 문제 세트로 빠르게 돌아갈 수 있습니다.
-            </p>
+            <div className="mb-8">
+              <h1 className="mb-4 text-3xl md:text-4xl font-extrabold tracking-tight text-text">
+                내 기록
+              </h1>
+              <p className="text-base md:text-lg text-muted-text leading-relaxed max-w-2xl whitespace-pre-line">
+  {"내가 풀어온 문제의 결과와 유형별 패턴을 확인하세요.\n강점과 약점을 파악해 코드 이해 역량을 꾸준히 키워나갈 수 있습니다."}
+              </p>
+            </div>
 
             <div className="overflow-hidden rounded-xl border border-lavender-tint bg-white shadow-default">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
@@ -222,7 +214,7 @@ export default function HistoryPage() {
               <div className="grid grid-cols-1 border-t border-lavender-tint lg:grid-cols-4">
                 <div className="p-6">
                   <p className="mb-4 text-sm font-extrabold text-text">
-                    난이도별 푼 문제
+                    난이도별 푼 문항
                   </p>
                 {isLoading ? (
                   <div className="space-y-4">
@@ -306,9 +298,8 @@ export default function HistoryPage() {
               value={sortBy}
               onChange={(value) => setSortBy(value as SortOption)}
               options={[
-                { value: "date", label: "최신순" },
-                { value: "score-desc", label: "점수 높은순" },
-                { value: "score-asc", label: "점수 낮은순" },
+                { value: "date-desc", label: "최신순" },
+                { value: "date-asc", label: "오래된순" },
               ]}
             />
           </div>
