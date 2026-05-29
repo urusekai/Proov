@@ -159,21 +159,18 @@ function ProblemSetNewContent() {
                 </p>
               </div>
 
-              <section aria-labelledby="pr-guidance-heading" className="mb-10">
-                <div className="flex items-center gap-2 mb-3">
+              <section aria-labelledby="pr-guidance-heading" className="mb-10 rounded-xl border border-lavender-tint bg-white shadow-default overflow-hidden">
+                <div className="flex items-center gap-2 px-5 py-4 border-b border-lavender-tint">
                   <Info className="h-4 w-4 text-accent shrink-0" aria-hidden />
-                  <h2
-                    id="pr-guidance-heading"
-                    className="text-sm font-semibold text-muted-text"
-                  >
+                  <h2 id="pr-guidance-heading" className="text-sm font-semibold text-text">
                     PR 입력 전에 확인해 주세요
                   </h2>
                 </div>
-                <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <ul className="divide-y divide-lavender-tint">
                   {prGuidanceItems.map((item) => (
-                    <li key={item.title} className="rounded-xl border border-lavender-tint bg-white px-5 py-4 shadow-default">
-                      <p className="text-sm font-semibold text-text mb-0.5">{item.title}</p>
-                      <p className="text-sm leading-relaxed text-muted-text">{item.detail}</p>
+                    <li key={item.title} className="px-5 py-4">
+                      <p className="text-sm font-semibold text-text mb-0.5 break-keep">{item.title}</p>
+                      <p className="text-sm leading-relaxed text-muted-text break-keep">{item.detail}</p>
                     </li>
                   ))}
                 </ul>
