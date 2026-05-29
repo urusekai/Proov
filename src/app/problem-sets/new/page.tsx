@@ -2,7 +2,7 @@
 
 import React, { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Check, Info, X } from "lucide-react";
+import { ArrowRight, Check, Copy, Info, X } from "lucide-react";
 import { PrMetaBox } from "@/components/pr-meta-box";
 import { formatPrRepository, parseGitHubPrUrl } from "@/lib/github-pr-url";
 import { getPrDiffGuidanceItems } from "@/lib/pr-diff-policy";
@@ -11,6 +11,8 @@ import { SiteHeader } from "@/components/site-header";
 import { apiFetch } from "@/lib/supabase";
 import { useRequireAuth } from "@/components/auth-provider";
 import { siteContentClass } from "@/lib/layout";
+
+const EXAMPLE_PR_URL = "https://github.com/muteLJS/GOREON/pull/102";
 
 const loadingPhases = [
   "Pull Request URL을 확인하고 있습니다.",
@@ -23,13 +25,14 @@ const loadingPhases = [
 function ProblemSetNewContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialPrUrl = searchParams.get("url") ?? "";
-  const [prUrl, setPrUrl] = useState(initialPrUrl);
+  const urlFromQuery = searchParams.get("url");
+  const [prUrl, setPrUrl] = useState(urlFromQuery ?? "");
   const [step, setStep] = useState<"INPUT" | "LOADING" | "ERROR">(
-    initialPrUrl ? "LOADING" : "INPUT"
+    urlFromQuery ? "LOADING" : "INPUT"
   );
   const [loadingStep, setLoadingStep] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
+  const [exampleCopied, setExampleCopied] = useState(false);
   const [prPreview, setPrPreview] = useState<{
     repository: string;
     pullNumber: number;
@@ -37,7 +40,7 @@ function ProblemSetNewContent() {
   } | null>(null);
   const autoStartedRef = useRef(false);
   const redirectPath =
-    "/problem-sets/new" + (initialPrUrl ? `?url=${encodeURIComponent(initialPrUrl)}` : "");
+    "/problem-sets/new" + (urlFromQuery ? `?url=${encodeURIComponent(urlFromQuery)}` : "");
   const { isReady } = useRequireAuth(redirectPath);
 
   useEffect(() => {
@@ -131,12 +134,22 @@ function ProblemSetNewContent() {
     startGeneration();
   };
 
+  const copyExamplePrUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(EXAMPLE_PR_URL);
+      setExampleCopied(true);
+      window.setTimeout(() => setExampleCopied(false), 2000);
+    } catch {
+      setExampleCopied(false);
+    }
+  };
+
   useEffect(() => {
-    if (!isReady || !initialPrUrl || autoStartedRef.current) return;
+    if (!isReady || !urlFromQuery || autoStartedRef.current) return;
     autoStartedRef.current = true;
     window.setTimeout(() => startGeneration(), 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReady, initialPrUrl]);
+  }, [isReady, urlFromQuery]);
 
   const prGuidanceItems = getPrDiffGuidanceItems();
 
@@ -176,27 +189,48 @@ function ProblemSetNewContent() {
                 </ul>
               </section>
 
-              <form onSubmit={handleStart} className="flex gap-3">
-                <label htmlFor="pr-url" className="sr-only">
-                  GitHub Pull Request URL
-                </label>
-                <input
-                  id="pr-url"
-                  type="url"
-                  required
-                  placeholder="https://github.com/owner/repo/pull/123"
-                  value={prUrl}
-                  onChange={(event) => setPrUrl(event.target.value)}
-                  className="flex-1 min-h-12 rounded-lg border border-lavender-tint bg-white px-4 text-sm text-text shadow-default outline-none placeholder:text-muted-text/50 transition-all focus:border-accent focus:shadow-highlight focus:ring-2 focus:ring-accent/20"
-                />
-                <button
-                  type="submit"
-                  disabled={!prUrl.trim()}
-                  className="inline-flex shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-primary hover:shadow-default active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <span>문제 만들기</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+              <form onSubmit={handleStart}>
+                <div className="flex flex-col gap-3 md:flex-row md:items-stretch">
+                  <label htmlFor="pr-url" className="sr-only">
+                    GitHub Pull Request URL
+                  </label>
+                  <input
+                    id="pr-url"
+                    type="url"
+                    required
+                    placeholder="https://github.com/owner/repo/pull/123"
+                    value={prUrl}
+                    onChange={(event) => setPrUrl(event.target.value)}
+                    className="min-h-12 w-full rounded-lg border border-lavender-tint bg-white px-4 text-sm text-text shadow-default outline-none placeholder:text-muted-text/50 transition-all focus:border-accent focus:shadow-highlight focus:ring-2 focus:ring-accent/20 md:min-w-0 md:flex-1"
+                  />
+                  <div className="flex w-full flex-row gap-3 md:shrink-0 md:w-auto">
+                    <button
+                      type="button"
+                      onClick={() => void copyExamplePrUrl()}
+                      className="inline-flex min-h-12 flex-1 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-lavender-tint bg-white px-4 py-2.5 text-sm font-semibold text-accent shadow-sm transition-all hover:border-accent hover:shadow-default active:scale-[0.98] md:flex-none md:px-5"
+                    >
+                      {exampleCopied ? (
+                        <>
+                          <Check className="h-4 w-4 text-emerald-600" aria-hidden />
+                          복사완료
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-4 w-4" aria-hidden />
+                          예시 PR 복사
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!prUrl.trim()}
+                      className="inline-flex min-h-12 flex-1 shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-primary hover:shadow-default active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 md:flex-none md:px-5"
+                    >
+                      <span>문제 만들기</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
               </form>
             </>
           )}
