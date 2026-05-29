@@ -9,35 +9,53 @@ import { AuthShell } from "../_components/auth-shell";
 import { supabase } from "@/lib/supabase";
 import { useGuestOnly } from "@/components/auth-provider";
 
+const TEST_ACCOUNT = {
+  email: "testuser@naver.com",
+  password: "testuser",
+} as const;
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   const redirect = searchParams.get("redirect") ?? "/";
+  const afterLoginRedirect = searchParams.get("redirect") ?? "/problem-sets/new";
   const isAuthLoading = useGuestOnly(redirect);
+
+  const signIn = async (email: string, password: string) => {
+    if (!supabase) {
+      setError("Supabase 환경 변수가 없어 로그인할 수 없습니다.");
+      return;
+    }
+
+    setError("");
+    setIsSigningIn(true);
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+
+    setIsSigningIn(false);
+
+    if (signInError) {
+      setError("이메일 또는 비밀번호가 올바르지 않습니다.");
+      return;
+    }
+
+    router.push(afterLoginRedirect);
+  };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = event.currentTarget;
     const email = (form.elements.namedItem("email") as HTMLInputElement).value;
     const password = (form.elements.namedItem("password") as HTMLInputElement).value;
+    void signIn(email, password);
+  };
 
-    const afterLoginRedirect = searchParams.get("redirect") ?? "/problem-sets/new";
-
-    if (!supabase) {
-      setError("Supabase 환경 변수가 없어 로그인할 수 없습니다.");
-      return;
-    }
-
-    supabase.auth.signInWithPassword({ email, password }).then(({ error: signInError }) => {
-      if (signInError) {
-        setError("이메일 또는 비밀번호가 올바르지 않습니다.");
-        return;
-      }
-      router.push(afterLoginRedirect);
-    });
+  const handleTestAccountLogin = () => {
+    void signIn(TEST_ACCOUNT.email, TEST_ACCOUNT.password);
   };
 
   if (isAuthLoading) return null;
@@ -115,9 +133,19 @@ function LoginForm() {
 
         <button
           type="submit"
-          className="w-full rounded-lg bg-accent px-5 py-3.5 text-sm font-extrabold text-white shadow-sm transition-all hover:bg-primary hover:shadow-default active:scale-[0.98]"
+          disabled={isSigningIn}
+          className="w-full rounded-lg bg-accent px-5 py-3.5 text-sm font-extrabold text-white shadow-sm transition-all hover:bg-primary hover:shadow-default active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
         >
           로그인
+        </button>
+
+        <button
+          type="button"
+          onClick={handleTestAccountLogin}
+          disabled={isSigningIn}
+          className="w-full rounded-lg border border-lavender-tint bg-white px-5 py-3.5 text-sm font-semibold text-accent shadow-sm transition-all hover:border-accent hover:shadow-default active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          테스트 계정으로 로그인
         </button>
       </form>
 

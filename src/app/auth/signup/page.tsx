@@ -72,7 +72,7 @@ function SignupForm() {
               type="text"
               autoComplete="name"
               required
-              placeholder="홍길동"
+              placeholder="proov_user"
               className="min-h-12 w-full bg-transparent text-sm text-text outline-none placeholder:text-muted-text/60"
             />
           </div>

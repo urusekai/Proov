@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
+import { getSiteUrl, siteConfig } from "@/lib/site";
 import "./globals.css";
 
 const geistMono = Geist_Mono({
@@ -8,14 +9,46 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
 });
 
-
 export const metadata: Metadata = {
-  title: "Proov | AI 기반 코드 이해력 평가 및 학습 플랫폼",
-  description: "실제 GitHub PR 코드를 바탕으로 AI가 출제하는 맞춤형 문제를 풀며, 실무 코드 이해력과 아키텍처 이해도를 증명하세요.",
+  metadataBase: new URL(getSiteUrl()),
+  title: {
+    default: siteConfig.title,
+    template: `%s | ${siteConfig.name}`,
+  },
+  description: siteConfig.description,
+  applicationName: siteConfig.name,
+  keywords: [...siteConfig.keywords],
+  authors: [{ name: siteConfig.name }],
+  creator: siteConfig.name,
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  openGraph: {
+    type: "website",
+    locale: "ko_KR",
+    url: "/",
+    siteName: siteConfig.name,
+    title: siteConfig.shortTitle,
+    description: siteConfig.ogDescription,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteConfig.shortTitle,
+    description: siteConfig.ogDescription,
+  },
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({
-  children
+  children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
@@ -27,4 +60,3 @@ export default function RootLayout({
     </html>
   );
 }
-

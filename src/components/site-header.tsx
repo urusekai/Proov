@@ -65,7 +65,7 @@ export function SiteHeader({ activePath, variant = "default" }: SiteHeaderProps)
           className="group relative z-10 flex shrink-0 items-center gap-2.5 leading-none"
         >
           <ProovLogo className="w-[22px] h-[22px] text-primary transition-colors duration-200 group-hover:text-accent" />
-          <span className="text-primary font-bold text-2xl transition-colors duration-200 group-hover:text-accent">
+          <span className="text-primary font-semibold text-lg transition-colors duration-200 group-hover:text-accent">
             Proov
           </span>
         </Link>

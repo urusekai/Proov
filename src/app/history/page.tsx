@@ -176,7 +176,7 @@ export default function HistoryPage() {
                 내 기록
               </h1>
               <p className="text-base md:text-lg text-muted-text leading-relaxed max-w-2xl whitespace-pre-line">
-  {"내가 풀어온 문제의 결과와 유형별 패턴을 확인하세요.\n강점과 약점을 파악해 코드 이해 역량을 꾸준히 키워나갈 수 있습니다."}
+                {"내가 풀어온 문제의 결과와 유형별 패턴을 확인하세요.\n강점과 약점을 파악해 코드 이해 역량을 꾸준히 키워나갈 수 있습니다."}
               </p>
             </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import Link from "next/link";
 import { Check, ArrowRight, Lock, Link2, Sparkles, ClipboardList, History, ChevronRight, X } from "lucide-react";
@@ -13,21 +13,6 @@ import { SiteFooter } from "@/components/site-footer";
 import { ProblemQuestionCard } from "@/components/problem-question-card";
 import type { SubmissionListItemData } from "@/lib/types";
 import { SubmissionListItem } from "@/components/submission-list-item";
-
-// Proov SVG Logo Component
-const ProovLogo = ({ className = "w-6 h-6" }: { className?: string }) => (
-  <svg
-    className={className}
-    viewBox="0 0 44 44"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path
-      d="M13.2969 18.5801C12.7563 19.7463 12.4531 21.045 12.4531 22.415C12.4531 27.4585 16.5415 31.5469 21.585 31.5469C22.9548 31.5469 24.2528 31.2426 25.4189 30.7021L38.3613 43.6445C37.6149 43.8748 36.8221 44 36 44H8C3.58172 44 1.28855e-07 40.4183 0 36V8C2.3982e-08 7.17769 0.124055 6.38435 0.354492 5.6377L13.2969 18.5801ZM36 0C40.4183 1.28851e-07 44 3.58172 44 8V36C44 36.8221 43.8748 37.6149 43.6445 38.3613L30.3301 25.0469C30.5806 24.2134 30.7168 23.3302 30.7168 22.415C30.7168 17.3716 26.6284 13.2832 21.585 13.2832C20.6696 13.2832 19.7859 13.4183 18.9521 13.6689L5.6377 0.354492C6.38435 0.124055 7.17769 2.39812e-08 8 0H36Z"
-      fill="currentColor"
-    />
-  </svg>
-);
 
 const PORTFOLIO_SET_IDS = [
   "zustand-devtools-type-declaration",
@@ -188,6 +173,22 @@ function DashboardView({ session }: { session: AppSession }) {
 export default function Home() {
   const { status, session } = useAuth();
 
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("visible");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.12 }
+    );
+    document.querySelectorAll(".reveal").forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [status]);
+
   if (status === "loading") {
     return null;
   }
@@ -203,15 +204,18 @@ export default function Home() {
       {/* Main Contents */}
       <main className="flex-grow">
         {/* Hero Section */}
-        <section className="relative overflow-hidden flex flex-col items-center justify-center py-24 md:py-36 bg-white">
-
-          <div className="w-full max-w-[1248px] mx-auto px-6 relative z-10 flex flex-col items-center text-center">
+        <section className="relative flex flex-col items-center justify-center py-24 md:py-36 bg-white">
+          <div className="w-full max-w-[1248px] mx-auto px-6 flex flex-col items-center text-center">
             {/* Title */}
             <h1
               className="text-4xl md:text-5xl lg:text-[52px] leading-tight md:leading-[1.25] font-extrabold tracking-tight text-text mb-6 whitespace-pre-line animate-fade-in-up"
               style={{ animationDelay: "0ms" }}
             >
-              {"AI가 짜준 코드,\n얼마나 이해하고 있나요?"}
+              {"AI가 짜준 "}
+              <span className="text-highlight">코드</span>
+              {",\n얼마나 "}
+              <span className="text-highlight">이해하고</span>
+              {" 있나요?"}
             </h1>
 
             {/* Description */}
@@ -219,7 +223,11 @@ export default function Home() {
               className="text-base md:text-lg text-muted-text leading-relaxed mb-10 max-w-2xl whitespace-pre-line animate-fade-in-up"
               style={{ animationDelay: "240ms" }}
             >
-              {"AI가 코드를 짜주는 시대, 구현보다 이해가 중요합니다.\n유형 암기로 푸는 코딩테스트가 아닌,\n실제 PR을 기반으로 코드 이해력을 키워보세요."}
+              {"AI가 코드를 짜주는 시대, "}
+              <span className="text-text font-bold">구현보다 이해</span>
+              {"가 중요합니다.\n유형 암기로 푸는 코딩테스트가 아닌,\n"}
+              <span className="text-text font-bold">실제 PR을 기반으로</span>
+              {" 코드 이해력을 키워보세요."}
             </p>
 
             {/* Dual CTA */}
@@ -249,7 +257,7 @@ export default function Home() {
         {/* How it works Section */}
         <section className="py-20 md:py-28 bg-background border-t border-lavender-tint">
           <div className="w-full max-w-[1248px] mx-auto px-6">
-            <div className="text-center mb-10">
+            <div className="text-center mb-10 reveal">
               <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-text mb-4">
                 3단계로 끝나는 코드 이해력 훈련
               </h2>
@@ -264,7 +272,7 @@ export default function Home() {
                 {
                   icon: <Link2 className="w-6 h-6" />,
                   title: "PR URL 붙여넣기",
-                  desc: "분석하고 싶은 공개 GitHub PR 링크를 입력합니다.\n내가 작성한 PR이든, 오픈소스 PR이든 상관없습니다.",
+                  desc: "분석하고 싶은 공개 GitHub PR 링크를 입력합니다.",
                 },
                 {
                   icon: <Sparkles className="w-6 h-6" />,
@@ -278,7 +286,10 @@ export default function Home() {
                 },
               ].map(({ icon, title, desc }, i) => (
                 <React.Fragment key={title}>
-                  <div className="flex-1 flex flex-col items-center text-center px-8 py-6">
+                  <div
+                    className="flex-1 flex flex-col items-center text-center px-8 py-6 reveal"
+                    style={{ transitionDelay: `${i * 120}ms` }}
+                  >
                     <div className="w-14 h-14 rounded-2xl bg-accent/10 text-accent flex items-center justify-center mb-5 shrink-0">
                       {icon}
                     </div>
@@ -316,7 +327,7 @@ export default function Home() {
         <section className="py-20 md:py-28 bg-white border-t border-lavender-tint">
           <div className="w-full max-w-[1248px] mx-auto px-6">
             {/* Section Header */}
-            <div className="text-center mb-16">
+            <div className="text-center mb-16 reveal">
               <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-text mb-4">
                 코드 이해력을 키우는 새로운 방법
               </h2>
@@ -328,7 +339,7 @@ export default function Home() {
             {/* Cards Grid */}
             <div className="grid md:grid-cols-2 gap-8 w-full">
               {/* Card 1: Existing Coding Test */}
-              <div className="bg-white rounded-xl p-8 border border-lavender-tint shadow-default hover:shadow-highlight transition-all duration-300">
+              <div className="bg-white rounded-xl p-8 border border-lavender-tint shadow-default hover:shadow-highlight transition-all duration-300 reveal">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-bold text-muted-text">
                     기존 코딩테스트
@@ -383,7 +394,7 @@ export default function Home() {
               </div>
 
               {/* Card 2: Proov */}
-              <div className="bg-white rounded-xl p-8 border-2 border-accent shadow-highlight relative overflow-hidden transition-shadow duration-300">
+              <div className="bg-white rounded-xl p-8 border-2 border-accent shadow-highlight relative overflow-hidden transition-shadow duration-300 reveal" style={{ transitionDelay: "120ms" }}>
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-bold text-accent">
                     PROOV
@@ -443,7 +454,7 @@ export default function Home() {
         {/* Featured Problem Sets Section */}
         <section className="py-20 md:py-28 bg-background border-t border-lavender-tint">
           <div className="w-full max-w-[1248px] mx-auto px-6">
-            <div className="text-center mb-16">
+            <div className="text-center mb-16 reveal">
               <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-text mb-4">
                 지금 바로 풀 수 있는 문제
               </h2>
@@ -453,15 +464,17 @@ export default function Home() {
             </div>
 
             <div className="grid md:grid-cols-3 gap-6">
-              {featuredQuestions.map((ps) => (
-                <ProblemQuestionCard key={ps.id} item={ps} />
+              {featuredQuestions.map((ps, i) => (
+                <div key={ps.id} className="reveal" style={{ transitionDelay: `${i * 100}ms` }}>
+                  <ProblemQuestionCard item={ps} />
+                </div>
               ))}
             </div>
 
             <div className="flex justify-center mt-10">
               <Link
                 href="/problem-sets"
-                className="inline-flex items-center gap-2 text-sm font-bold border border-lavender-tint text-accent hover:text-primary hover:border-accent hover:bg-lavender-tint/20 px-6 py-3 rounded-lg transition-all active:scale-[0.98]"
+                className="inline-flex items-center gap-2 text-sm font-semibold bg-accent text-white hover:bg-primary px-6 py-3 rounded-lg shadow-sm transition-all hover:shadow-default active:scale-[0.98]"
               >
                 <span>전체 문제 보기</span>
                 <ArrowRight className="w-4 h-4" />
@@ -471,18 +484,7 @@ export default function Home() {
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-background border-t border-lavender-tint/50 py-12 text-sm text-muted-text">
-        <div className="max-w-[1248px] mx-auto px-6 flex flex-col items-center gap-3">
-          <Link href="/" className="flex items-center gap-2 text-primary font-bold text-[20px] leading-none hover:opacity-90 transition-opacity">
-            <ProovLogo className="w-[18px] h-[18px] text-accent" />
-            <span>Proov</span>
-          </Link>
-          <p className="text-xs text-muted-text text-center">
-            &copy; 2026 Proov. All rights reserved. Code Comprehension for Modern Teams.
-          </p>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

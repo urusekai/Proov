@@ -107,7 +107,9 @@ export default function MyProblemsPage() {
               내가 만든 문제
             </h1>
             <p className="text-base md:text-lg text-muted-text leading-relaxed max-w-2xl">
-              내가 생성한 PR 기반 문제 세트입니다. 원하는 문항을 골라 바로 풀어보세요.
+              내가 생성한 PR 기반 문제 세트입니다.
+              <br />
+              원하는 문항을 골라 바로 풀어보세요.
             </p>
           </div>
 
