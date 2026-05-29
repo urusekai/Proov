@@ -49,11 +49,11 @@ export function SiteHeader({ activePath, variant = "default" }: SiteHeaderProps)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { status, session } = useAuth();
 
-  const isLinkActive = (href: string) =>
-    activePath === href ||
-    (href !== "/problem-sets/new" &&
-      activePath !== "/problem-sets/new" &&
-      activePath?.startsWith(`${href}/`));
+  const isLinkActive = (href: string): boolean => {
+    if (activePath === href) return true;
+    if (href === "/problem-sets/new" || activePath === "/problem-sets/new") return false;
+    return activePath?.startsWith(`${href}/`) ?? false;
+  };
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
 

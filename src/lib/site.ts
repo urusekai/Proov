@@ -4,8 +4,8 @@ export const PROOV_LOGO_PATH =
 
 export const siteConfig = {
   name: "Proov",
-  title: "Proov | PR 기반 코드 학습",
-  shortTitle: "Proov | PR 기반 코드 학습",
+  title: "Proov — PR 기반 코드 학습 플랫폼",
+  shortTitle: "Proov — PR 기반 코드 학습 플랫폼",
   description:
     "실제 GitHub PR 코드를 바탕으로 AI가 출제하는 맞춤형 문제를 풀며, 실무 코드 이해력과 아키텍처 이해도를 증명하세요.",
   ogDescription:

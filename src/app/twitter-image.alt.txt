@@ -1,1 +1,1 @@
-Proov | PR 기반 코드 학습
+Proov — PR 기반 코드 학습 플랫폼
