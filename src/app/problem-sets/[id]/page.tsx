@@ -12,8 +12,9 @@ import {
 } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { apiFetch } from "@/lib/supabase";
+import { recordGuestQuestionProgress } from "@/lib/guest-question-progress";
 import { invalidateQuestionProgressCache } from "@/lib/use-question-progress";
-import type { ProblemSetDetail, QuestionTag } from "@/lib/types";
+import type { ProblemSetDetail, QuestionTag, SubmissionResult } from "@/lib/types";
 
 const TAG_LABELS: Record<QuestionTag, string> = {
   CODE_BEHAVIOR: "코드 동작",
@@ -101,6 +102,7 @@ export default function ProblemSetSolvePage({
 
   const [currentQ, setCurrentQ] = useState(0);
   const [answers, setAnswers] = useState<Record<string, "A" | "B" | "C" | "D">>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeFile, setActiveFile] = useState<string>("");
   const [diffState, setDiffState] = useState<DiffState>({
     status: "loading",
@@ -218,36 +220,43 @@ export default function ProblemSetSolvePage({
     setAnswers((prev) => ({ ...prev, [question.id]: opt }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (isSubmitting || !answers[question.id]) return;
+
+    setIsSubmitting(true);
+
     if (typeof window !== "undefined") {
-      sessionStorage.setItem(
-        `answers-${id}`,
-        JSON.stringify(answers)
-      );
+      sessionStorage.setItem(`answers-${id}`, JSON.stringify(answers));
     }
-    apiFetch(`/api/problem-sets/${id}/submit`, {
-      method: "POST",
-      body: JSON.stringify({
-        answers: [
-          {
-            questionId: question.id,
-            selectedAnswer: answers[question.id],
-          },
-        ],
-      }),
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("submit failed");
-        return res.json();
-      })
-      .then((data) => {
-        invalidateQuestionProgressCache();
-        sessionStorage.setItem(`result-${id}`, JSON.stringify(data.result));
-        router.push(`/problem-sets/${id}/result?question=${encodeURIComponent(question.id)}`);
-      })
-      .catch(() => {
-        router.push(`/problem-sets/${id}/result?question=${encodeURIComponent(question.id)}`);
+
+    try {
+      const res = await apiFetch(`/api/problem-sets/${id}/submit`, {
+        method: "POST",
+        body: JSON.stringify({
+          answers: [
+            {
+              questionId: question.id,
+              selectedAnswer: answers[question.id],
+            },
+          ],
+        }),
       });
+
+      if (!res.ok) throw new Error("submit failed");
+
+      const data = (await res.json()) as { result: SubmissionResult };
+      for (const answer of data.result.answers) {
+        if (!data.result.saved) {
+          recordGuestQuestionProgress(answer.questionId, answer.isCorrect);
+        }
+      }
+      invalidateQuestionProgressCache();
+      sessionStorage.setItem(`result-${id}`, JSON.stringify(data.result));
+      router.push(`/problem-sets/${id}/result?question=${encodeURIComponent(question.id)}`);
+    } catch {
+      setIsSubmitting(false);
+      router.push(`/problem-sets/${id}/result?question=${encodeURIComponent(question.id)}`);
+    }
   };
 
   const selectedAnswer = answers[question.id];
@@ -412,8 +421,10 @@ export default function ProblemSetSolvePage({
                     return (
                       <button
                         key={option.id}
+                        type="button"
+                        disabled={isSubmitting}
                         onClick={() => handleSelect(option.id)}
-                        className={`w-full text-left p-3.5 rounded-xl border transition-colors duration-200 flex items-start gap-3.5 ${
+                        className={`w-full text-left p-3.5 rounded-xl border transition-colors duration-200 flex items-start gap-3.5 disabled:cursor-not-allowed disabled:opacity-60 ${
                           isSelected
                             ? "bg-accent/5 border-accent text-text"
                             : "bg-white border-lavender-tint hover:bg-lavender-tint/20 hover:border-lavender-tint text-text"
@@ -435,11 +446,12 @@ export default function ProblemSetSolvePage({
 
               <div className="mt-6 xl:mt-0 xl:pt-5 xl:shrink-0 flex flex-col gap-3">
                 <button
-                  onClick={handleSubmit}
-                  disabled={!allAnswered}
+                  type="button"
+                  onClick={() => void handleSubmit()}
+                  disabled={!allAnswered || isSubmitting}
                   className="w-full bg-accent text-white py-2.5 rounded-lg text-xs md:text-sm font-extrabold hover:bg-primary transition-all active:scale-[0.98] shadow-sm disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer text-center"
                 >
-                  답안 제출
+                  {isSubmitting ? "결과 전송 중..." : "답안 제출"}
                 </button>
               </div>
             </aside>

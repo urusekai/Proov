@@ -12,14 +12,31 @@ import {
 
 import { ProblemQuestionCard } from "@/components/problem-question-card";
 import type { ProblemQuestionSummary, SubmissionResult } from "@/lib/types";
+import {
+  useQuestionProgress,
+  type QuestionProgressStatus,
+} from "@/lib/use-question-progress";
 
 type SubmissionResultViewProps = {
   result: SubmissionResult;
 };
 
 export function SubmissionResultView({ result }: SubmissionResultViewProps) {
+  const questionProgress = useQuestionProgress({ refreshOnMount: true });
   const problemSet = result.problemSet;
   const solvedQuestionIds = new Set(result.answers.map((answer) => answer.questionId));
+
+  const getProgressStatus = (questionId: string): QuestionProgressStatus => {
+    const fromHistory = questionProgress.get(questionId);
+    if (fromHistory) return fromHistory;
+
+    const justAnswered = result.answers.find((answer) => answer.questionId === questionId);
+    if (justAnswered) {
+      return justAnswered.isCorrect ? "solved" : "attempted";
+    }
+
+    return "untried";
+  };
   const nextQuestions: ProblemQuestionSummary[] = problemSet.questions
     .filter((question) => !solvedQuestionIds.has(question.id))
     .slice(0, 2)
@@ -219,7 +236,11 @@ export function SubmissionResultView({ result }: SubmissionResultViewProps) {
           </div>
           <div className="grid gap-6 md:grid-cols-2">
             {nextQuestions.map((nextQuestion) => (
-              <ProblemQuestionCard key={nextQuestion.id} item={nextQuestion} />
+              <ProblemQuestionCard
+                key={nextQuestion.id}
+                item={nextQuestion}
+                progressStatus={getProgressStatus(nextQuestion.id)}
+              />
             ))}
           </div>
         </section>

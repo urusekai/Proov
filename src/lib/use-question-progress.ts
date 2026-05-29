@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { useAuth } from "@/components/auth-provider";
+import { readGuestQuestionProgress } from "@/lib/guest-question-progress";
 import { apiFetch } from "@/lib/supabase";
 import type { SubmissionListItemData } from "@/lib/types";
 
@@ -30,7 +31,7 @@ function buildProgressMap(items: SubmissionListItemData[]): Map<string, Question
 
 async function fetchQuestionProgress(userId: string | null): Promise<Map<string, QuestionProgressStatus>> {
   if (!userId) {
-    cachedProgress = new Map();
+    cachedProgress = readGuestQuestionProgress();
     cachedUserId = null;
     return cachedProgress;
   }

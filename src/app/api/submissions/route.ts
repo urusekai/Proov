@@ -1,3 +1,4 @@
+import { publicQuestionIdFromDbId } from "@/lib/server/curated-question-id";
 import { dedupeSubmissionsByQuestion } from "@/lib/server/submission-history";
 import { submissionStoreErrorResponse } from "@/lib/server/submission-errors";
 import { createSupabaseAdmin, getAuthenticatedUser, hasSupabaseServerEnv, jsonError } from "@/lib/server/supabase-admin";
@@ -75,7 +76,7 @@ export async function GET(request: Request) {
     const answers = (submission.submission_answers ?? []).map((answer) => {
       const question = Array.isArray(answer.questions) ? answer.questions[0] : answer.questions;
       return {
-        questionId: answer.question_id,
+        questionId: publicQuestionIdFromDbId(answer.question_id, problemSet.id),
         selectedAnswer: answer.selected_answer,
         correctAnswer: answer.correct_answer,
         isCorrect: answer.is_correct,
