@@ -69,7 +69,7 @@ BEGINNER: the answer is explicitly present in the changed lines — reading the 
 INTERMEDIATE: requires understanding the meaning or effect of the change — interpreting intent, comparing before/after, or following 1-2 steps of data/control flow.
 ADVANCED: requires reasoning about non-obvious consequences — edge cases, failure modes, implicit side effects, or impact on code not shown in the diff.
 For each question, create title. title must be Korean, short, noun-phrase style, not a question, and must not reveal the answer.
-Also create displayTitle, summary, languageTags, frameworkTags, libraryTags, and topicTags.
+Also create displayTitle, languageTags, frameworkTags, libraryTags, and topicTags.
 Set top-level difficulty to any valid value — it will be recalculated from question difficulties.
 displayTitle must describe the learning topic, not just copy the PR title.
 displayTitle and summary must not reveal the exact answer condition.

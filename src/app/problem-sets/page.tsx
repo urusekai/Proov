@@ -7,7 +7,6 @@ import { SiteFooter } from "@/components/site-footer";
 import { FilterSelect } from "@/components/filter-select";
 import { ProblemQuestionCard } from "@/components/problem-question-card";
 import { useQuestionProgress } from "@/lib/use-question-progress";
-import { useAuth } from "@/components/auth-provider";
 import type { ProblemQuestionSummary } from "@/lib/types";
 
 type SortOption = "latest" | "oldest" | "popular-desc" | "popular-asc";
@@ -21,8 +20,6 @@ export default function ProblemSetsPage() {
   const [filterFramework, setFilterFramework] = useState<string>("ALL");
   const [filterProgress, setFilterProgress] = useState<ProgressFilter>("ALL");
   const [sortBy, setSortBy] = useState<SortOption>("latest");
-  const { status, session } = useAuth();
-  const isLoggedIn = status === "authenticated" && session !== null;
   const questionProgress = useQuestionProgress({ refreshOnMount: true });
 
   useEffect(() => {
@@ -144,20 +141,18 @@ export default function ProblemSetsPage() {
               ]}
             />
 
-            {/* Progress filter — 로그인 사용자만 노출 */}
-            {isLoggedIn && (
-              <FilterSelect
-                label="풀이 상태"
-                value={filterProgress}
-                onChange={(v) => setFilterProgress(v as ProgressFilter)}
-                options={[
-                  { value: "ALL", label: "전체 문제" },
-                  { value: "untried", label: "안 푼 문제" },
-                  { value: "attempted", label: "틀린 문제" },
-                  { value: "solved", label: "맞춘 문제" },
-                ]}
-              />
-            )}
+            {/* Progress filter */}
+            <FilterSelect
+              label="풀이 상태"
+              value={filterProgress}
+              onChange={(v) => setFilterProgress(v as ProgressFilter)}
+              options={[
+                { value: "ALL", label: "전체 문제" },
+                { value: "untried", label: "안 푼 문제" },
+                { value: "attempted", label: "틀린 문제" },
+                { value: "solved", label: "맞춘 문제" },
+              ]}
+            />
 
             <div className="ml-auto flex items-center gap-3">
               <span className="text-sm font-semibold text-muted-text tabular-nums">
